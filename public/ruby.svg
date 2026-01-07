@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <defs>
+    <linearGradient id="rubyGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#f27a96"/>
+      <stop offset="50%" style="stop-color:#E31B54"/>
+      <stop offset="100%" style="stop-color:#88153c"/>
+    </linearGradient>
+  </defs>
+  <polygon points="50,5 90,35 75,95 25,95 10,35" fill="url(#rubyGrad)"/>
+  <polygon points="50,5 50,95 75,95 90,35" fill="#c01445" opacity="0.5"/>
+  <polygon points="50,25 70,40 60,75 40,75 30,40" fill="#fde6ea" opacity="0.3"/>
+</svg>

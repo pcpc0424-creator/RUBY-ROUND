@@ -1,0 +1,64 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-dark-900 text-white font-sans antialiased;
+  }
+
+  ::selection {
+    @apply bg-ruby-600/30;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply px-6 py-3 bg-ruby-600 text-white font-medium rounded-lg
+           hover:bg-ruby-700 transition-all duration-300
+           hover:shadow-lg hover:shadow-ruby-600/25;
+  }
+
+  .btn-secondary {
+    @apply px-6 py-3 border border-ruby-600 text-ruby-500 font-medium rounded-lg
+           hover:bg-ruby-600/10 transition-all duration-300;
+  }
+
+  .card {
+    @apply bg-dark-800 border border-dark-600 rounded-2xl p-6
+           hover:border-ruby-600/50 transition-all duration-300;
+  }
+
+  .gradient-text {
+    @apply bg-gradient-to-r from-ruby-400 to-ruby-600 bg-clip-text text-transparent;
+  }
+
+  .glow-border {
+    @apply relative before:absolute before:inset-0 before:rounded-2xl
+           before:p-[1px] before:bg-gradient-to-r before:from-ruby-600
+           before:to-ruby-400 before:-z-10;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-dark-900;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-dark-600 rounded-full hover:bg-dark-700;
+}
