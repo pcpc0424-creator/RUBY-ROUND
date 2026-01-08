@@ -75,14 +75,17 @@ const tiers = [
 
 function TierCard({ tier, index }) {
   return (
-    <div className={`relative ${index === 0 ? 'lg:-mt-4' : ''}`}>
+    <div
+      className={`relative animate-fade-in-up opacity-0 ${index === 0 ? 'lg:-mt-4' : ''}`}
+      style={{ animationDelay: `${0.2 + index * 0.15}s`, animationFillMode: 'forwards' }}
+    >
       {index === 0 && (
-        <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-0.5 sm:px-4 sm:py-1 bg-gradient-to-r from-amber-400 to-yellow-500 text-dark-900 text-[10px] sm:text-xs font-bold rounded-full">
+        <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-0.5 sm:px-4 sm:py-1 bg-gradient-to-r from-amber-400 to-yellow-500 text-dark-900 text-[10px] sm:text-xs font-bold rounded-full animate-pulse z-10">
           HIGHEST TIER
         </div>
       )}
 
-      <div className={`card p-4 sm:p-6 ${tier.borderColor} ${index === 0 ? 'ring-2 ring-amber-500/20' : ''}`}>
+      <div className={`card p-4 sm:p-6 hover-lift transition-all duration-500 ${tier.borderColor} ${index === 0 ? 'ring-2 ring-amber-500/20 animate-border-glow' : 'hover-glow'}`}>
         <div className="flex items-center justify-between mb-4 sm:mb-6">
           <div className={`px-2 py-0.5 sm:px-3 sm:py-1 rounded-full ${tier.bgColor}`}>
             <span className={`font-bold text-xs sm:text-sm ${tier.textColor}`}>{tier.name}</span>
@@ -91,7 +94,8 @@ function TierCard({ tier, index }) {
             {[...Array(4 - index)].map((_, i) => (
               <div
                 key={i}
-                className={`w-2 h-2 sm:w-3 sm:h-3 rotate-45 bg-gradient-to-br ${tier.color}`}
+                className={`w-2 h-2 sm:w-3 sm:h-3 rotate-45 bg-gradient-to-br ${tier.color} ${index === 0 ? 'animate-ruby-rotate' : ''}`}
+                style={{ animationDelay: `${i * 0.2}s` }}
               />
             ))}
           </div>
@@ -105,7 +109,10 @@ function TierCard({ tier, index }) {
           <p className="text-gray-500 text-xs sm:text-sm mb-2 sm:mb-3">포함 사항</p>
           <ul className="space-y-1.5 sm:space-y-2">
             {tier.features.map((feature, i) => (
-              <li key={i} className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm text-gray-300">
+              <li
+                key={i}
+                className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm text-gray-300"
+              >
                 <svg className={`w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0 ${tier.textColor}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
@@ -121,16 +128,27 @@ function TierCard({ tier, index }) {
 
 export default function Tiers() {
   return (
-    <div className="py-12 sm:py-20">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div className="py-12 sm:py-20 relative overflow-hidden">
+      {/* Background effects */}
+      <div className="absolute top-20 left-1/4 w-96 h-96 bg-amber-500/5 rounded-full blur-3xl animate-glow" />
+      <div className="absolute bottom-20 right-1/4 w-96 h-96 bg-ruby-600/5 rounded-full blur-3xl animate-glow" style={{ animationDelay: '1.5s' }} />
+
+      {/* Floating gems */}
+      <div className="absolute top-32 right-[10%] w-5 h-5 bg-gradient-to-br from-amber-400 to-yellow-600 rotate-45 animate-ruby-rotate opacity-40" />
+      <div className="absolute top-60 left-[5%] w-4 h-4 bg-gradient-to-br from-ruby-400 to-ruby-600 rotate-45 animate-ruby-rotate opacity-30" style={{ animationDelay: '0.5s' }} />
+      <div className="absolute bottom-40 right-[20%] w-3 h-3 bg-gradient-to-br from-rose-400 to-rose-600 rotate-45 animate-ruby-rotate opacity-35" style={{ animationDelay: '1s' }} />
+      <div className="absolute top-40 left-[30%] w-2 h-2 bg-amber-400 rounded-full animate-sparkle" style={{ animationDelay: '0.3s' }} />
+      <div className="absolute bottom-60 left-[15%] w-2 h-2 bg-ruby-400 rounded-full animate-sparkle" style={{ animationDelay: '1.2s' }} />
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
         <div className="text-center mb-8 sm:mb-16">
-          <h1 className="text-2xl sm:text-4xl lg:text-5xl font-bold mb-3 sm:mb-6">
-            보상 <span className="text-ruby-500">티어</span>
+          <h1 className="text-2xl sm:text-4xl lg:text-5xl font-bold mb-3 sm:mb-6 animate-fade-in-up opacity-0" style={{ animationDelay: '0.1s', animationFillMode: 'forwards' }}>
+            보상 <span className="text-shimmer">티어</span>
           </h1>
-          <p className="text-base sm:text-xl text-gray-300 mb-2 sm:mb-4">
+          <p className="text-base sm:text-xl text-gray-300 mb-2 sm:mb-4 animate-fade-in-up opacity-0" style={{ animationDelay: '0.2s', animationFillMode: 'forwards' }}>
             시즌 종료 시 충족된 조건에 따라 단 하나의 보상 티어가 확정됩니다.
           </p>
-          <p className="text-gray-400 text-xs sm:text-base max-w-2xl mx-auto">
+          <p className="text-gray-400 text-xs sm:text-base max-w-2xl mx-auto animate-fade-in-up opacity-0" style={{ animationDelay: '0.3s', animationFillMode: 'forwards' }}>
             참여한 라운드와 누적 예약금에 따라 더 높은 티어의 보상을 받을 기회가 열립니다.
             모든 참여자는 최소 Tier B 이상의 실물 보석을 보장받습니다.
           </p>
@@ -143,9 +161,9 @@ export default function Tiers() {
         </div>
 
         {/* Notice */}
-        <div className="mt-6 sm:mt-12 bg-dark-800 border border-dark-600 rounded-xl sm:rounded-2xl p-4 sm:p-8">
+        <div className="mt-6 sm:mt-12 bg-dark-800 border border-dark-600 rounded-xl sm:rounded-2xl p-4 sm:p-8 hover-glow animate-fade-in-up opacity-0" style={{ animationDelay: '0.8s', animationFillMode: 'forwards' }}>
           <div className="flex items-start gap-3 sm:gap-4">
-            <div className="w-8 h-8 sm:w-10 sm:h-10 bg-ruby-600/20 rounded-lg flex items-center justify-center flex-shrink-0">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 bg-ruby-600/20 rounded-lg flex items-center justify-center flex-shrink-0 animate-pulse">
               <svg className="w-4 h-4 sm:w-5 sm:h-5 text-ruby-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>

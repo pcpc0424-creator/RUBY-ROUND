@@ -1,52 +1,106 @@
 import { Link } from 'react-router-dom';
 
+// Floating Ruby Particles Component
+function FloatingParticles() {
+  return (
+    <div className="particles-container">
+      {/* Large decorative rubies */}
+      <div className="absolute top-20 left-[10%] w-5 h-5 bg-gradient-to-br from-ruby-400 to-ruby-600 rotate-45 animate-ruby-rotate opacity-60" style={{ animationDelay: '0s' }} />
+      <div className="absolute top-40 right-[15%] w-7 h-7 bg-gradient-to-br from-ruby-500 to-ruby-700 rotate-45 animate-ruby-rotate opacity-40" style={{ animationDelay: '1s' }} />
+      <div className="absolute bottom-32 left-[20%] w-4 h-4 bg-gradient-to-br from-ruby-300 to-ruby-500 rotate-45 animate-ruby-rotate opacity-50" style={{ animationDelay: '0.5s' }} />
+      <div className="absolute top-60 left-[5%] w-3 h-3 bg-gradient-to-br from-ruby-400 to-ruby-600 rotate-45 animate-ruby-rotate opacity-30" style={{ animationDelay: '1.5s' }} />
+      <div className="absolute bottom-40 right-[10%] w-6 h-6 bg-gradient-to-br from-ruby-500 to-ruby-700 rotate-45 animate-ruby-rotate opacity-35" style={{ animationDelay: '2s' }} />
+
+      {/* Sparkle effects */}
+      <div className="absolute top-32 left-[30%] w-2 h-2 bg-ruby-400 rounded-full animate-sparkle" style={{ animationDelay: '0.3s' }} />
+      <div className="absolute top-56 right-[25%] w-2 h-2 bg-ruby-300 rounded-full animate-sparkle" style={{ animationDelay: '0.8s' }} />
+      <div className="absolute bottom-48 left-[40%] w-1.5 h-1.5 bg-ruby-500 rounded-full animate-sparkle" style={{ animationDelay: '1.3s' }} />
+      <div className="absolute top-72 left-[60%] w-2 h-2 bg-ruby-400 rounded-full animate-sparkle" style={{ animationDelay: '1.8s' }} />
+      <div className="absolute bottom-60 right-[35%] w-1.5 h-1.5 bg-ruby-300 rounded-full animate-sparkle" style={{ animationDelay: '2.3s' }} />
+
+      {/* Floating particles */}
+      <div className="particle top-[15%] left-[25%]" style={{ animationDelay: '0s', animationDuration: '7s' }} />
+      <div className="particle top-[45%] left-[75%]" style={{ animationDelay: '2s', animationDuration: '9s' }} />
+      <div className="particle top-[65%] left-[15%]" style={{ animationDelay: '4s', animationDuration: '8s' }} />
+      <div className="particle top-[25%] left-[85%]" style={{ animationDelay: '1s', animationDuration: '6s' }} />
+      <div className="particle top-[75%] left-[55%]" style={{ animationDelay: '3s', animationDuration: '10s' }} />
+    </div>
+  );
+}
+
 // Hero Section
 function HeroSection() {
   return (
     <section className="relative min-h-[70vh] sm:min-h-[90vh] flex items-center overflow-hidden">
-      {/* Background effects */}
+      {/* Animated background effects */}
       <div className="absolute inset-0 bg-gradient-to-b from-ruby-950/20 via-dark-900 to-dark-900" />
-      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[800px] h-[800px] bg-ruby-600/10 rounded-full blur-3xl" />
-      <div className="absolute top-1/3 right-0 w-[400px] h-[400px] bg-ruby-500/5 rounded-full blur-3xl" />
+      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[800px] h-[800px] bg-ruby-600/10 rounded-full blur-3xl animate-glow" />
+      <div className="absolute top-1/3 right-0 w-[400px] h-[400px] bg-ruby-500/5 rounded-full blur-3xl animate-glow" style={{ animationDelay: '1.5s' }} />
+      <div className="absolute bottom-0 left-1/4 w-[600px] h-[600px] bg-ruby-700/5 rounded-full blur-3xl animate-glow" style={{ animationDelay: '3s' }} />
 
-      {/* Floating ruby gems */}
-      <div className="absolute top-20 left-[10%] w-4 h-4 bg-ruby-500/30 rotate-45 animate-float" style={{ animationDelay: '0s' }} />
-      <div className="absolute top-40 right-[15%] w-6 h-6 bg-ruby-400/20 rotate-45 animate-float" style={{ animationDelay: '1s' }} />
-      <div className="absolute bottom-32 left-[20%] w-3 h-3 bg-ruby-600/25 rotate-45 animate-float" style={{ animationDelay: '0.5s' }} />
+      {/* Floating ruby particles */}
+      <FloatingParticles />
 
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-20">
         <div className="max-w-4xl">
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 sm:px-4 sm:py-2 bg-ruby-600/10 border border-ruby-600/30 rounded-full mb-4 sm:mb-8">
-            <span className="w-2 h-2 bg-ruby-500 rounded-full animate-pulse" />
+          {/* Season badge with pulse ring */}
+          <div className="relative inline-flex items-center gap-2 px-3 py-1.5 sm:px-4 sm:py-2 bg-ruby-600/10 border border-ruby-600/30 rounded-full mb-4 sm:mb-8 animate-fade-in-down glass">
+            <span className="relative flex h-2 w-2">
+              <span className="absolute inline-flex h-full w-full rounded-full bg-ruby-400 opacity-75 animate-ping" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-ruby-500" />
+            </span>
             <span className="text-ruby-400 text-xs sm:text-sm font-medium">Season 01 진행 중</span>
           </div>
 
-          <h1 className="text-3xl sm:text-5xl lg:text-7xl font-bold leading-tight mb-4 sm:mb-6">
-            실물 루비를
-            <br />
-            <span className="gradient-text">발굴하다</span>
-          </h1>
+          {/* Main heading with staggered animation */}
+          <div className="overflow-hidden mb-4 sm:mb-6">
+            <h1 className="text-3xl sm:text-5xl lg:text-7xl font-bold leading-tight">
+              <span className="block animate-fade-in-up opacity-0" style={{ animationDelay: '0.2s', animationFillMode: 'forwards' }}>
+                실물 루비를
+              </span>
+              <span className="block animate-fade-in-up opacity-0" style={{ animationDelay: '0.4s', animationFillMode: 'forwards' }}>
+                <span className="text-shimmer">발굴하다</span>
+              </span>
+            </h1>
+          </div>
 
-          <p className="text-lg sm:text-2xl text-gray-300 font-light mb-3 sm:mb-4">
+          {/* Subheading with animation */}
+          <p className="text-lg sm:text-2xl text-gray-300 font-light mb-3 sm:mb-4 animate-fade-in-up opacity-0" style={{ animationDelay: '0.6s', animationFillMode: 'forwards' }}>
             라이브로 진행되는 보석 프로젝트
           </p>
 
-          <p className="text-gray-400 text-sm sm:text-lg max-w-2xl mb-3 sm:mb-4">
+          <p className="text-gray-400 text-sm sm:text-lg max-w-2xl mb-3 sm:mb-4 animate-fade-in-up opacity-0" style={{ animationDelay: '0.8s', animationFillMode: 'forwards' }}>
             Ruby Round는 실물 루비 및 보석을 기반으로 한 시즌제 라이브 보석 커머스입니다.
           </p>
 
-          <p className="text-gray-500 text-xs sm:text-sm max-w-2xl mb-6 sm:mb-10">
+          <p className="text-gray-500 text-xs sm:text-sm max-w-2xl mb-6 sm:mb-10 animate-fade-in-up opacity-0" style={{ animationDelay: '1s', animationFillMode: 'forwards' }}>
             모든 참여 금액은 시즌 종료 시 실물 루비 보석 악세사리 또는 보석 적립금으로 전환됩니다.
           </p>
 
-          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
-            <Link to="/season" className="btn-primary text-center text-base sm:text-lg px-6 py-3 sm:px-8 sm:py-4">
-              현재 시즌 참여하기
+          {/* CTA buttons with animation */}
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 animate-fade-in-up opacity-0" style={{ animationDelay: '1.2s', animationFillMode: 'forwards' }}>
+            <Link
+              to="/season"
+              className="btn-primary text-center text-base sm:text-lg px-6 py-3 sm:px-8 sm:py-4 relative overflow-hidden group"
+            >
+              <span className="relative z-10">현재 시즌 참여하기</span>
+              <div className="absolute inset-0 bg-gradient-to-r from-ruby-700 to-ruby-500 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+              <div className="absolute inset-0 animate-shimmer opacity-30" />
             </Link>
-            <Link to="/about" className="btn-secondary text-center text-base sm:text-lg px-6 py-3 sm:px-8 sm:py-4">
+            <Link
+              to="/about"
+              className="btn-secondary text-center text-base sm:text-lg px-6 py-3 sm:px-8 sm:py-4 hover-glow"
+            >
               서비스 구조 알아보기
             </Link>
           </div>
+        </div>
+      </div>
+
+      {/* Scroll indicator */}
+      <div className="absolute bottom-8 left-1/2 -translate-x-1/2 animate-bounce hidden sm:block">
+        <div className="w-6 h-10 border-2 border-gray-600 rounded-full flex justify-center pt-2">
+          <div className="w-1 h-2 bg-ruby-500 rounded-full animate-pulse" />
         </div>
       </div>
     </section>
@@ -58,51 +112,52 @@ function CurrentSeasonCard() {
   return (
     <section className="py-12 sm:py-20 relative">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="relative">
-          {/* Glow effect */}
-          <div className="absolute -inset-1 bg-gradient-to-r from-ruby-600 to-ruby-400 rounded-2xl sm:rounded-3xl blur opacity-20" />
+        <div className="relative group">
+          {/* Animated glow effect */}
+          <div className="absolute -inset-1 bg-gradient-to-r from-ruby-600 via-ruby-400 to-ruby-600 rounded-2xl sm:rounded-3xl blur opacity-20 group-hover:opacity-30 transition-opacity duration-500 animate-gradient-shift" />
 
-          <div className="relative bg-dark-800 border border-dark-600 rounded-2xl sm:rounded-3xl p-5 sm:p-8 lg:p-12">
+          <div className="relative bg-dark-800 border border-dark-600 rounded-2xl sm:rounded-3xl p-5 sm:p-8 lg:p-12 hover-glow animate-fade-in-scale opacity-0" style={{ animationDelay: '0.3s', animationFillMode: 'forwards' }}>
             <div className="grid lg:grid-cols-2 gap-6 lg:gap-12 items-center">
               <div>
                 <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
-                  <span className="px-2 py-0.5 sm:px-3 sm:py-1 bg-ruby-600/20 text-ruby-400 text-xs sm:text-sm font-medium rounded-full">
+                  <span className="px-2 py-0.5 sm:px-3 sm:py-1 bg-ruby-600/20 text-ruby-400 text-xs sm:text-sm font-medium rounded-full animate-pulse">
                     진행 중
                   </span>
                   <span className="text-gray-500 text-xs sm:text-sm">2024.01 ~ 진행중</span>
                 </div>
 
-                <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-3 sm:mb-4">
+                <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-3 sm:mb-4 animate-slide-in-left opacity-0" style={{ animationDelay: '0.5s', animationFillMode: 'forwards' }}>
                   Ruby Round <span className="text-ruby-500">Season 01</span>
                 </h2>
 
-                <p className="text-gray-400 text-sm sm:text-base mb-4 sm:mb-6">
+                <p className="text-gray-400 text-sm sm:text-base mb-4 sm:mb-6 animate-slide-in-left opacity-0" style={{ animationDelay: '0.7s', animationFillMode: 'forwards' }}>
                   첫 번째 시즌이 시작되었습니다. 라운드별로 참여하고 시즌 종료 시
                   확정된 보상 티어에 따라 실물 루비 보석을 받아보세요.
                 </p>
 
-                <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
-                  <Link to="/season" className="btn-primary text-center text-sm sm:text-base">
-                    시즌 상세 보기
+                <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 animate-slide-in-left opacity-0" style={{ animationDelay: '0.9s', animationFillMode: 'forwards' }}>
+                  <Link to="/season" className="btn-primary text-center text-sm sm:text-base relative overflow-hidden group/btn">
+                    <span className="relative z-10">시즌 상세 보기</span>
+                    <div className="absolute inset-0 animate-shimmer opacity-20" />
                   </Link>
-                  <Link to="/rounds" className="btn-secondary text-center text-sm sm:text-base">
+                  <Link to="/rounds" className="btn-secondary text-center text-sm sm:text-base hover-glow">
                     라운드 참여
                   </Link>
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3 sm:gap-4">
-                <div className="bg-dark-700 rounded-xl sm:rounded-2xl p-4 sm:p-6 text-center">
+                <div className="bg-dark-700 rounded-xl sm:rounded-2xl p-4 sm:p-6 text-center hover-lift animate-count-up opacity-0" style={{ animationDelay: '0.6s', animationFillMode: 'forwards' }}>
                   <p className="text-gray-500 text-xs sm:text-sm mb-1 sm:mb-2">현재 라운드</p>
                   <p className="text-xl sm:text-3xl font-bold text-ruby-500">Round 3</p>
                 </div>
-                <div className="bg-dark-700 rounded-xl sm:rounded-2xl p-4 sm:p-6 text-center">
+                <div className="bg-dark-700 rounded-xl sm:rounded-2xl p-4 sm:p-6 text-center hover-lift animate-count-up opacity-0" style={{ animationDelay: '0.8s', animationFillMode: 'forwards' }}>
                   <p className="text-gray-500 text-xs sm:text-sm mb-1 sm:mb-2">잔여 라운드</p>
                   <p className="text-xl sm:text-3xl font-bold">4 ~ 7</p>
                 </div>
-                <div className="bg-dark-700 rounded-xl sm:rounded-2xl p-4 sm:p-6 text-center col-span-2">
+                <div className="bg-dark-700 rounded-xl sm:rounded-2xl p-4 sm:p-6 text-center col-span-2 hover-lift animate-count-up opacity-0" style={{ animationDelay: '1s', animationFillMode: 'forwards' }}>
                   <p className="text-gray-500 text-xs sm:text-sm mb-1 sm:mb-2">누적 참여 금액</p>
-                  <p className="text-xl sm:text-3xl font-bold text-ruby-400">₩128,500,000</p>
+                  <p className="text-xl sm:text-3xl font-bold text-shimmer">₩128,500,000</p>
                 </div>
               </div>
             </div>
@@ -155,13 +210,17 @@ function ServiceFeatures() {
   ];
 
   return (
-    <section className="py-12 sm:py-20 bg-dark-800/50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <section className="py-12 sm:py-20 bg-dark-800/50 relative overflow-hidden">
+      {/* Background decorations */}
+      <div className="absolute top-0 left-1/4 w-96 h-96 bg-ruby-600/5 rounded-full blur-3xl" />
+      <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-ruby-500/5 rounded-full blur-3xl" />
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
         <div className="text-center mb-8 sm:mb-16">
-          <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-3 sm:mb-4">
-            Ruby Round의 <span className="text-ruby-500">핵심 가치</span>
+          <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-3 sm:mb-4 animate-fade-in-up opacity-0" style={{ animationDelay: '0.2s', animationFillMode: 'forwards' }}>
+            Ruby Round의 <span className="text-shimmer">핵심 가치</span>
           </h2>
-          <p className="text-gray-400 text-sm sm:text-base max-w-2xl mx-auto">
+          <p className="text-gray-400 text-sm sm:text-base max-w-2xl mx-auto animate-fade-in-up opacity-0" style={{ animationDelay: '0.4s', animationFillMode: 'forwards' }}>
             투명하고 안전한 보석 커머스 경험을 제공합니다
           </p>
         </div>
@@ -170,12 +229,13 @@ function ServiceFeatures() {
           {features.map((feature, index) => (
             <div
               key={index}
-              className="card group hover:bg-dark-700/50 p-4 sm:p-6"
+              className="card group hover:bg-dark-700/50 p-4 sm:p-6 hover-lift animate-fade-in-up opacity-0"
+              style={{ animationDelay: `${0.5 + index * 0.15}s`, animationFillMode: 'forwards' }}
             >
-              <div className="w-10 h-10 sm:w-14 sm:h-14 bg-ruby-600/10 rounded-lg sm:rounded-xl flex items-center justify-center text-ruby-500 mb-3 sm:mb-4 group-hover:bg-ruby-600/20 transition-colors">
+              <div className="w-10 h-10 sm:w-14 sm:h-14 bg-ruby-600/10 rounded-lg sm:rounded-xl flex items-center justify-center text-ruby-500 mb-3 sm:mb-4 group-hover:bg-ruby-600/20 group-hover:scale-110 transition-all duration-300">
                 <div className="w-5 h-5 sm:w-8 sm:h-8">{feature.icon}</div>
               </div>
-              <h3 className="text-sm sm:text-lg font-semibold mb-1 sm:mb-2">{feature.title}</h3>
+              <h3 className="text-sm sm:text-lg font-semibold mb-1 sm:mb-2 group-hover:text-ruby-400 transition-colors duration-300">{feature.title}</h3>
               <p className="text-gray-400 text-xs sm:text-sm">{feature.description}</p>
             </div>
           ))}
@@ -190,24 +250,35 @@ function CTASection() {
   return (
     <section className="py-12 sm:py-20">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="relative bg-gradient-to-r from-ruby-950 to-dark-800 rounded-2xl sm:rounded-3xl p-6 sm:p-8 lg:p-16 overflow-hidden">
-          {/* Background decoration */}
-          <div className="absolute top-0 right-0 w-64 h-64 bg-ruby-600/10 rounded-full blur-3xl" />
-          <div className="absolute bottom-0 left-0 w-48 h-48 bg-ruby-500/10 rounded-full blur-3xl" />
+        <div className="relative bg-gradient-to-r from-ruby-950 to-dark-800 rounded-2xl sm:rounded-3xl p-6 sm:p-8 lg:p-16 overflow-hidden group animate-fade-in-scale opacity-0" style={{ animationDelay: '0.3s', animationFillMode: 'forwards' }}>
+          {/* Animated background decorations */}
+          <div className="absolute top-0 right-0 w-64 h-64 bg-ruby-600/10 rounded-full blur-3xl animate-glow" />
+          <div className="absolute bottom-0 left-0 w-48 h-48 bg-ruby-500/10 rounded-full blur-3xl animate-glow" style={{ animationDelay: '1.5s' }} />
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-ruby-600/5 rounded-full blur-3xl animate-pulse" />
+
+          {/* Floating rubies in CTA */}
+          <div className="absolute top-10 right-20 w-4 h-4 bg-gradient-to-br from-ruby-400 to-ruby-600 rotate-45 animate-ruby-rotate opacity-40" style={{ animationDelay: '0.5s' }} />
+          <div className="absolute bottom-16 left-16 w-3 h-3 bg-gradient-to-br from-ruby-300 to-ruby-500 rotate-45 animate-ruby-rotate opacity-30" style={{ animationDelay: '1s' }} />
+          <div className="absolute top-1/2 right-10 w-5 h-5 bg-gradient-to-br from-ruby-500 to-ruby-700 rotate-45 animate-ruby-rotate opacity-25" style={{ animationDelay: '1.5s' }} />
 
           <div className="relative text-center">
-            <h2 className="text-xl sm:text-3xl lg:text-4xl font-bold mb-3 sm:mb-4">
+            <h2 className="text-xl sm:text-3xl lg:text-4xl font-bold mb-3 sm:mb-4 animate-fade-in-up opacity-0" style={{ animationDelay: '0.5s', animationFillMode: 'forwards' }}>
               지금 바로 시즌에 참여하세요
             </h2>
-            <p className="text-gray-300 text-sm sm:text-base max-w-2xl mx-auto mb-5 sm:mb-8">
+            <p className="text-gray-300 text-sm sm:text-base max-w-2xl mx-auto mb-5 sm:mb-8 animate-fade-in-up opacity-0" style={{ animationDelay: '0.7s', animationFillMode: 'forwards' }}>
               Round 1 체험 라운드는 무료로 참여할 수 있습니다.
               시즌의 세계관과 보석 채굴 구조를 직접 경험해보세요.
             </p>
-            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center">
-              <Link to="/rounds" className="btn-primary text-sm sm:text-lg px-6 py-3 sm:px-10 sm:py-4">
-                무료 체험 시작하기
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center animate-fade-in-up opacity-0" style={{ animationDelay: '0.9s', animationFillMode: 'forwards' }}>
+              <Link
+                to="/rounds"
+                className="btn-primary text-sm sm:text-lg px-6 py-3 sm:px-10 sm:py-4 relative overflow-hidden group/btn"
+              >
+                <span className="relative z-10">무료 체험 시작하기</span>
+                <div className="absolute inset-0 bg-gradient-to-r from-ruby-700 to-ruby-500 opacity-0 group-hover/btn:opacity-100 transition-opacity duration-500" />
+                <div className="absolute inset-0 animate-shimmer opacity-30" />
               </Link>
-              <Link to="/faq" className="btn-secondary text-sm sm:text-lg px-6 py-3 sm:px-10 sm:py-4">
+              <Link to="/faq" className="btn-secondary text-sm sm:text-lg px-6 py-3 sm:px-10 sm:py-4 hover-glow">
                 자주 묻는 질문
               </Link>
             </div>

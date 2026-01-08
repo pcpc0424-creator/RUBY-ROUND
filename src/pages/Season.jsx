@@ -1,26 +1,47 @@
 import { Link } from 'react-router-dom';
 
+// Floating Particles for background
+function FloatingGems() {
+  return (
+    <div className="absolute inset-0 overflow-hidden pointer-events-none">
+      <div className="absolute top-20 left-[10%] w-4 h-4 bg-gradient-to-br from-ruby-400 to-ruby-600 rotate-45 animate-ruby-rotate opacity-40" style={{ animationDelay: '0s' }} />
+      <div className="absolute top-40 right-[15%] w-6 h-6 bg-gradient-to-br from-ruby-500 to-ruby-700 rotate-45 animate-ruby-rotate opacity-30" style={{ animationDelay: '1s' }} />
+      <div className="absolute bottom-32 left-[20%] w-3 h-3 bg-gradient-to-br from-ruby-300 to-ruby-500 rotate-45 animate-ruby-rotate opacity-35" style={{ animationDelay: '0.5s' }} />
+      <div className="absolute top-32 left-[30%] w-2 h-2 bg-ruby-400 rounded-full animate-sparkle" style={{ animationDelay: '0.3s' }} />
+      <div className="absolute bottom-48 right-[25%] w-2 h-2 bg-ruby-300 rounded-full animate-sparkle" style={{ animationDelay: '1.2s' }} />
+    </div>
+  );
+}
+
 // Season Overview
 function SeasonOverview() {
   return (
-    <section className="py-12 sm:py-20">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <section className="py-12 sm:py-20 relative overflow-hidden">
+      <FloatingGems />
+
+      {/* Background glow */}
+      <div className="absolute top-0 left-1/4 w-96 h-96 bg-ruby-600/10 rounded-full blur-3xl animate-glow" />
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
         <div className="max-w-3xl">
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 sm:px-4 sm:py-2 bg-ruby-600/10 border border-ruby-600/30 rounded-full mb-4 sm:mb-6">
-            <span className="w-2 h-2 bg-ruby-500 rounded-full animate-pulse" />
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 sm:px-4 sm:py-2 bg-ruby-600/10 border border-ruby-600/30 rounded-full mb-4 sm:mb-6 animate-fade-in-down glass" style={{ animationDelay: '0.1s' }}>
+            <span className="relative flex h-2 w-2">
+              <span className="absolute inline-flex h-full w-full rounded-full bg-ruby-400 opacity-75 animate-ping" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-ruby-500" />
+            </span>
             <span className="text-ruby-400 text-xs sm:text-sm font-medium">현재 진행 중</span>
           </div>
 
-          <h1 className="text-2xl sm:text-4xl lg:text-5xl font-bold mb-4 sm:mb-6">
-            Ruby Round <span className="text-ruby-500">Season 01</span>
+          <h1 className="text-2xl sm:text-4xl lg:text-5xl font-bold mb-4 sm:mb-6 animate-fade-in-up opacity-0" style={{ animationDelay: '0.2s', animationFillMode: 'forwards' }}>
+            Ruby Round <span className="text-shimmer">Season 01</span>
           </h1>
 
-          <p className="text-base sm:text-xl text-gray-300 mb-3 sm:mb-4">
+          <p className="text-base sm:text-xl text-gray-300 mb-3 sm:mb-4 animate-fade-in-up opacity-0" style={{ animationDelay: '0.4s', animationFillMode: 'forwards' }}>
             Ruby Round 시즌은 하나의 보석 프로젝트 단위로 운영되며,
             시즌 종료 시 단 한 번의 보상 결과가 확정됩니다.
           </p>
 
-          <p className="text-sm sm:text-base text-gray-400">
+          <p className="text-sm sm:text-base text-gray-400 animate-fade-in-up opacity-0" style={{ animationDelay: '0.6s', animationFillMode: 'forwards' }}>
             각 라운드에 참여할수록 더 높은 보상 티어의 기회가 열리며,
             시즌 내 모든 참여금은 실물 보석으로 전환됩니다.
           </p>
@@ -85,31 +106,39 @@ function SeasonStructure() {
   ];
 
   return (
-    <section className="py-12 sm:py-20 bg-dark-800/50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <h2 className="text-xl sm:text-3xl font-bold mb-3 sm:mb-4 text-center">
-          시즌 진행 <span className="text-ruby-500">구조</span>
+    <section className="py-12 sm:py-20 bg-dark-800/50 relative overflow-hidden">
+      {/* Background decorations */}
+      <div className="absolute top-1/4 right-0 w-64 h-64 bg-ruby-600/5 rounded-full blur-3xl animate-glow" />
+      <div className="absolute bottom-1/4 left-0 w-64 h-64 bg-ruby-500/5 rounded-full blur-3xl animate-glow" style={{ animationDelay: '1.5s' }} />
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
+        <h2 className="text-xl sm:text-3xl font-bold mb-3 sm:mb-4 text-center animate-fade-in-up opacity-0" style={{ animationDelay: '0.2s', animationFillMode: 'forwards' }}>
+          시즌 진행 <span className="text-shimmer">구조</span>
         </h2>
-        <p className="text-gray-400 text-xs sm:text-base text-center mb-6 sm:mb-12 max-w-2xl mx-auto">
+        <p className="text-gray-400 text-xs sm:text-base text-center mb-6 sm:mb-12 max-w-2xl mx-auto animate-fade-in-up opacity-0" style={{ animationDelay: '0.4s', animationFillMode: 'forwards' }}>
           시즌은 총 7개의 라운드로 구성되며, 라운드가 진행될수록 보상 기대치가 상승합니다
         </p>
 
         <div className="relative">
           {/* Timeline line */}
-          <div className="absolute left-8 top-0 bottom-0 w-px bg-dark-600 hidden lg:block" />
+          <div className="absolute left-8 top-0 bottom-0 w-px bg-gradient-to-b from-ruby-600 via-dark-600 to-dark-600 hidden lg:block" />
 
           <div className="space-y-3 sm:space-y-6">
             {stages.map((stage, index) => (
-              <div key={index} className="relative">
+              <div
+                key={index}
+                className="relative animate-fade-in-up opacity-0"
+                style={{ animationDelay: `${0.5 + index * 0.1}s`, animationFillMode: 'forwards' }}
+              >
                 {/* Timeline dot */}
-                <div className={`absolute left-8 w-4 h-4 rounded-full -translate-x-1/2 hidden lg:block ${
+                <div className={`absolute left-8 w-4 h-4 rounded-full -translate-x-1/2 hidden lg:block transition-all duration-500 ${
                   stage.status === 'completed' ? 'bg-ruby-600' :
-                  stage.status === 'current' ? 'bg-ruby-500 animate-pulse ring-4 ring-ruby-500/30' :
+                  stage.status === 'current' ? 'bg-ruby-500 ring-4 ring-ruby-500/30 animate-pulse' :
                   'bg-dark-600'
                 }`} />
 
-                <div className={`lg:ml-16 card p-4 sm:p-6 ${
-                  stage.status === 'current' ? 'border-ruby-600/50 bg-ruby-950/20' : ''
+                <div className={`lg:ml-16 card p-4 sm:p-6 hover-lift transition-all duration-500 ${
+                  stage.status === 'current' ? 'border-ruby-600/50 bg-ruby-950/20 animate-border-glow' : 'hover-glow'
                 }`}>
                   <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 sm:gap-4">
                     <div className="flex-1">
@@ -122,7 +151,7 @@ function SeasonStructure() {
                           {stage.round}
                         </span>
                         {stage.status === 'current' && (
-                          <span className="px-1.5 py-0.5 sm:px-2 bg-ruby-600 text-white text-[10px] sm:text-xs rounded-full">
+                          <span className="px-1.5 py-0.5 sm:px-2 bg-ruby-600 text-white text-[10px] sm:text-xs rounded-full animate-pulse">
                             참여 가능
                           </span>
                         )}
@@ -146,8 +175,9 @@ function SeasonStructure() {
                         </p>
                       </div>
                       {stage.status === 'current' && (
-                        <Link to="/rounds" className="btn-primary whitespace-nowrap text-xs sm:text-base px-3 py-1.5 sm:px-6 sm:py-3">
-                          참여하기
+                        <Link to="/rounds" className="btn-primary whitespace-nowrap text-xs sm:text-base px-3 py-1.5 sm:px-6 sm:py-3 relative overflow-hidden group">
+                          <span className="relative z-10">참여하기</span>
+                          <div className="absolute inset-0 animate-shimmer opacity-30" />
                         </Link>
                       )}
                     </div>
@@ -159,9 +189,9 @@ function SeasonStructure() {
         </div>
 
         {/* Settlement info */}
-        <div className="mt-6 sm:mt-12 card p-4 sm:p-6 bg-gradient-to-r from-ruby-950/50 to-dark-800 border-ruby-900/50">
+        <div className="mt-6 sm:mt-12 card p-4 sm:p-6 bg-gradient-to-r from-ruby-950/50 to-dark-800 border-ruby-900/50 hover-glow animate-fade-in-scale opacity-0" style={{ animationDelay: '1.2s', animationFillMode: 'forwards' }}>
           <div className="flex items-start gap-3 sm:gap-4">
-            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-ruby-600/20 rounded-lg sm:rounded-xl flex items-center justify-center flex-shrink-0">
+            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-ruby-600/20 rounded-lg sm:rounded-xl flex items-center justify-center flex-shrink-0 animate-pulse">
               <svg className="w-5 h-5 sm:w-6 sm:h-6 text-ruby-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
@@ -184,9 +214,9 @@ function SeasonStructure() {
 // Legal Notice
 function LegalNotice() {
   return (
-    <section className="py-12 sm:py-20">
+    <section className="py-12 sm:py-20 relative">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="bg-dark-800 border border-dark-600 rounded-xl sm:rounded-2xl p-4 sm:p-8">
+        <div className="bg-dark-800 border border-dark-600 rounded-xl sm:rounded-2xl p-4 sm:p-8 hover-glow animate-fade-in-up opacity-0" style={{ animationDelay: '0.3s', animationFillMode: 'forwards' }}>
           <div className="flex items-start gap-3 sm:gap-4">
             <div className="w-8 h-8 sm:w-10 sm:h-10 bg-yellow-500/10 rounded-lg flex items-center justify-center flex-shrink-0">
               <svg className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">

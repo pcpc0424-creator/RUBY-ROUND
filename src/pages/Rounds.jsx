@@ -74,7 +74,7 @@ const rounds = [
   },
 ];
 
-function RoundCard({ round, isSelected, onClick }) {
+function RoundCard({ round, isSelected, onClick, index }) {
   const statusConfig = {
     completed: { label: '종료', color: 'bg-dark-600 text-gray-400' },
     active: { label: '참여 가능', color: 'bg-ruby-600 text-white' },
@@ -86,24 +86,25 @@ function RoundCard({ round, isSelected, onClick }) {
   return (
     <div
       onClick={onClick}
-      className={`card cursor-pointer transition-all p-4 sm:p-6 ${
-        isSelected ? 'border-ruby-500 bg-ruby-950/20' : ''
-      } ${round.status === 'active' ? 'ring-2 ring-ruby-500/30' : ''}`}
+      className={`card cursor-pointer transition-all duration-500 p-4 sm:p-6 hover-lift animate-fade-in-up opacity-0 ${
+        isSelected ? 'border-ruby-500 bg-ruby-950/20' : 'hover-glow'
+      } ${round.status === 'active' ? 'ring-2 ring-ruby-500/30 animate-border-glow' : ''}`}
+      style={{ animationDelay: `${0.1 + index * 0.08}s`, animationFillMode: 'forwards' }}
     >
       <div className="flex items-center justify-between mb-2 sm:mb-4">
         <div className="flex items-center gap-2 sm:gap-3">
           <span className="text-xs sm:text-sm font-medium text-gray-400">{round.number}</span>
-          <span className={`px-1.5 py-0.5 sm:px-2 text-[10px] sm:text-xs rounded-full ${status.color}`}>
+          <span className={`px-1.5 py-0.5 sm:px-2 text-[10px] sm:text-xs rounded-full ${status.color} ${round.status === 'active' ? 'animate-pulse' : ''}`}>
             {status.label}
           </span>
         </div>
-        <div className="flex items-center gap-0.5 sm:gap-1">
+        <div className="flex gap-0.5 sm:gap-1">
           {[...Array(Math.min(round.id, 5))].map((_, i) => (
             <div
               key={i}
-              className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rotate-45 ${
+              className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rotate-45 transition-all duration-300 ${
                 round.status === 'completed' ? 'bg-ruby-600' :
-                round.status === 'active' ? 'bg-ruby-500' :
+                round.status === 'active' ? 'bg-ruby-500 animate-pulse' :
                 'bg-dark-600'
               }`}
             />
@@ -111,7 +112,7 @@ function RoundCard({ round, isSelected, onClick }) {
         </div>
       </div>
 
-      <h3 className="text-base sm:text-xl font-semibold mb-1 sm:mb-2">{round.title}</h3>
+      <h3 className="text-base sm:text-xl font-semibold mb-1 sm:mb-2 group-hover:text-ruby-400 transition-colors">{round.title}</h3>
 
       <div className="flex items-end justify-between">
         <div>
@@ -136,7 +137,7 @@ function RoundDetail({ round }) {
   if (!round) return null;
 
   return (
-    <div className="bg-dark-800 border border-dark-600 rounded-xl sm:rounded-2xl p-5 sm:p-8 sticky top-32">
+    <div className="bg-dark-800 border border-dark-600 rounded-xl sm:rounded-2xl p-5 sm:p-8 sticky top-32 hover-glow animate-fade-in-scale opacity-0" style={{ animationDelay: '0.3s', animationFillMode: 'forwards' }}>
       <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
         <span className="text-ruby-500 font-medium text-sm sm:text-base">{round.number}</span>
         {round.status === 'active' && (
@@ -151,7 +152,7 @@ function RoundDetail({ round }) {
       <div className="mb-4 sm:mb-6">
         <p className="text-gray-500 text-xs sm:text-sm mb-1 sm:mb-2">참여비 (보석 구매 예약금)</p>
         <p className={`text-2xl sm:text-4xl font-bold ${
-          round.price === 0 ? 'text-green-400' : 'text-ruby-400'
+          round.price === 0 ? 'text-green-400' : 'text-shimmer'
         }`}>
           {round.price === 0 ? '무료' : `₩${round.price.toLocaleString()}`}
         </p>
@@ -164,8 +165,10 @@ function RoundDetail({ round }) {
       </div>
 
       {round.status === 'active' ? (
-        <button className="w-full btn-primary text-base sm:text-lg py-3 sm:py-4">
-          라운드 참여하기
+        <button className="w-full btn-primary text-base sm:text-lg py-3 sm:py-4 relative overflow-hidden group">
+          <span className="relative z-10">라운드 참여하기</span>
+          <div className="absolute inset-0 bg-gradient-to-r from-ruby-700 to-ruby-500 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+          <div className="absolute inset-0 animate-shimmer opacity-30" />
         </button>
       ) : round.status === 'completed' ? (
         <button className="w-full px-4 py-3 sm:px-6 sm:py-4 bg-dark-700 text-gray-500 rounded-lg cursor-not-allowed text-sm sm:text-base">
@@ -188,13 +191,21 @@ export default function Rounds() {
   const [selectedRound, setSelectedRound] = useState(rounds.find(r => r.status === 'active') || rounds[0]);
 
   return (
-    <div className="py-12 sm:py-20">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div className="py-12 sm:py-20 relative overflow-hidden">
+      {/* Background effects */}
+      <div className="absolute top-20 right-0 w-96 h-96 bg-ruby-600/5 rounded-full blur-3xl animate-glow" />
+      <div className="absolute bottom-20 left-0 w-96 h-96 bg-ruby-500/5 rounded-full blur-3xl animate-glow" style={{ animationDelay: '1.5s' }} />
+
+      {/* Floating particles */}
+      <div className="absolute top-40 left-[10%] w-4 h-4 bg-gradient-to-br from-ruby-400 to-ruby-600 rotate-45 animate-ruby-rotate opacity-30" />
+      <div className="absolute bottom-60 right-[15%] w-3 h-3 bg-gradient-to-br from-ruby-300 to-ruby-500 rotate-45 animate-ruby-rotate opacity-25" style={{ animationDelay: '1s' }} />
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
         <div className="mb-6 sm:mb-12">
-          <h1 className="text-2xl sm:text-4xl font-bold mb-2 sm:mb-4">
-            라운드 <span className="text-ruby-500">참여</span>
+          <h1 className="text-2xl sm:text-4xl font-bold mb-2 sm:mb-4 animate-fade-in-up opacity-0" style={{ animationDelay: '0.1s', animationFillMode: 'forwards' }}>
+            라운드 <span className="text-shimmer">참여</span>
           </h1>
-          <p className="text-gray-400 text-sm sm:text-base">
+          <p className="text-gray-400 text-sm sm:text-base animate-fade-in-up opacity-0" style={{ animationDelay: '0.2s', animationFillMode: 'forwards' }}>
             각 라운드에 참여하여 시즌 보상을 향해 나아가세요.
             라운드가 진행될수록 보상 기대치가 상승합니다.
           </p>
@@ -202,12 +213,13 @@ export default function Rounds() {
 
         <div className="grid lg:grid-cols-3 gap-4 sm:gap-8">
           <div className="lg:col-span-2 space-y-3 sm:space-y-4">
-            {rounds.map((round) => (
+            {rounds.map((round, index) => (
               <RoundCard
                 key={round.id}
                 round={round}
                 isSelected={selectedRound?.id === round.id}
                 onClick={() => setSelectedRound(round)}
+                index={index}
               />
             ))}
           </div>
