@@ -60,48 +60,71 @@ function SeasonStructure() {
       description: '무료 참여, 시즌 세계관과 보석 채굴 구조 체험',
       status: 'completed',
       price: '무료',
+      isFree: true,
     },
     {
       round: 'Round 2',
       title: '탐사 라운드',
       description: '보석 탐사의 첫 단계, 기본 채굴 시작',
       status: 'completed',
-      price: '₩500,000',
+      price: '유료라운드',
+      isFree: false,
     },
     {
       round: 'Round 3',
       title: '발굴 라운드',
       description: '본격적인 보석 발굴, 중급 원석 접근',
       status: 'current',
-      price: '₩1,000,000',
+      price: '유료라운드',
+      isFree: false,
     },
     {
       round: 'Round 4',
       title: 'Deep Cargo',
       description: '더 깊은 화물 레이어 개봉, 보석 밀도 증가',
       status: 'upcoming',
-      price: '₩1,800,000',
+      price: '유료라운드',
+      isFree: false,
     },
     {
       round: 'Round 5',
       title: 'Core Mining',
       description: '핵심 채굴 구역 진입, 희귀 원석 확률 상승',
       status: 'upcoming',
-      price: '₩2,500,000',
+      price: '유료라운드',
+      isFree: false,
     },
     {
       round: 'Round 6',
       title: 'Ruby Vein',
       description: '루비 광맥 접근, 고급 원석 채굴',
       status: 'upcoming',
-      price: '₩3,500,000',
+      price: '유료라운드',
+      isFree: false,
     },
     {
       round: 'Round 7',
       title: 'Final Extraction',
       description: '최종 추출, 최고급 보석 확정',
       status: 'upcoming',
-      price: '₩5,000,000',
+      price: '유료라운드',
+      isFree: false,
+    },
+    {
+      round: 'Round 8',
+      title: 'Premium Layer',
+      description: '프리미엄 레이어 진입, 특급 원석 채굴',
+      status: 'upcoming',
+      price: '유료라운드',
+      isFree: false,
+    },
+    {
+      round: 'Round 9',
+      title: 'Ultimate Discovery',
+      description: '궁극의 발견, 최종 보석 확정',
+      status: 'upcoming',
+      price: '유료라운드',
+      isFree: false,
     },
   ];
 
@@ -116,7 +139,7 @@ function SeasonStructure() {
           시즌 진행 <span className="text-shimmer">구조</span>
         </h2>
         <p className="text-gray-400 text-xs sm:text-base text-center mb-6 sm:mb-12 max-w-2xl mx-auto animate-fade-in-up opacity-0" style={{ animationDelay: '0.4s', animationFillMode: 'forwards' }}>
-          시즌은 총 7개의 라운드로 구성되며, 라운드가 진행될수록 보상 기대치가 상승합니다
+          시즌은 최대 9개의 라운드로 구성되며, 라운드가 진행될수록 보상 기대치가 상승합니다. 중간에 당첨 시 해당 시즌은 즉시 종료됩니다.
         </p>
 
         <div className="relative">
@@ -169,7 +192,7 @@ function SeasonStructure() {
                       <div className="sm:text-right">
                         <p className="text-gray-500 text-[10px] sm:text-xs mb-0.5 sm:mb-1">참여비 (예약금)</p>
                         <p className={`text-base sm:text-xl font-bold ${
-                          stage.price === '무료' ? 'text-green-400' : 'text-ruby-400'
+                          stage.isFree ? 'text-green-400' : 'text-gray-300'
                         }`}>
                           {stage.price}
                         </p>

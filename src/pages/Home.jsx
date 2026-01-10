@@ -74,7 +74,7 @@ function HeroSection() {
           </p>
 
           <p className="text-gray-500 text-xs sm:text-sm max-w-2xl mb-6 sm:mb-10 animate-fade-in-up opacity-0" style={{ animationDelay: '1s', animationFillMode: 'forwards' }}>
-            모든 참여 금액은 시즌 종료 시 실물 루비 보석 악세사리 또는 보석 적립금으로 전환됩니다.
+            모든 참여비는 루비 등 보석류 악세사리/귀금속 상품 구매를 위한 예약금(선불금)이며, 시즌 종료시 반드시 실물 상품 또는 보석 교환금(적립금)으로 제공됩니다.
           </p>
 
           {/* CTA buttons with animation */}
@@ -123,11 +123,11 @@ function CurrentSeasonCard() {
                   <span className="px-2 py-0.5 sm:px-3 sm:py-1 bg-ruby-600/20 text-ruby-400 text-xs sm:text-sm font-medium rounded-full animate-pulse">
                     진행 중
                   </span>
-                  <span className="text-gray-500 text-xs sm:text-sm">2024.01 ~ 진행중</span>
+                  <span className="text-gray-500 text-xs sm:text-sm">{new Date().toISOString().split('T')[0]}</span>
                 </div>
 
                 <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-3 sm:mb-4 animate-slide-in-left opacity-0" style={{ animationDelay: '0.5s', animationFillMode: 'forwards' }}>
-                  Ruby Round <span className="text-ruby-500">Season 01</span>
+                  {new Date().toISOString().split('T')[0]} Ruby Round <span className="text-ruby-500">Season 01</span>
                 </h2>
 
                 <p className="text-gray-400 text-sm sm:text-base mb-4 sm:mb-6 animate-slide-in-left opacity-0" style={{ animationDelay: '0.7s', animationFillMode: 'forwards' }}>
@@ -146,18 +146,11 @@ function CurrentSeasonCard() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3 sm:gap-4">
-                <div className="bg-dark-700 rounded-xl sm:rounded-2xl p-4 sm:p-6 text-center hover-lift animate-count-up opacity-0" style={{ animationDelay: '0.6s', animationFillMode: 'forwards' }}>
+              <div className="flex justify-center">
+                <div className="bg-dark-700 rounded-xl sm:rounded-2xl p-4 sm:p-6 text-center hover-lift animate-count-up opacity-0 w-full max-w-xs" style={{ animationDelay: '0.6s', animationFillMode: 'forwards' }}>
                   <p className="text-gray-500 text-xs sm:text-sm mb-1 sm:mb-2">현재 라운드</p>
                   <p className="text-xl sm:text-3xl font-bold text-ruby-500">Round 3</p>
-                </div>
-                <div className="bg-dark-700 rounded-xl sm:rounded-2xl p-4 sm:p-6 text-center hover-lift animate-count-up opacity-0" style={{ animationDelay: '0.8s', animationFillMode: 'forwards' }}>
-                  <p className="text-gray-500 text-xs sm:text-sm mb-1 sm:mb-2">잔여 라운드</p>
-                  <p className="text-xl sm:text-3xl font-bold">4 ~ 7</p>
-                </div>
-                <div className="bg-dark-700 rounded-xl sm:rounded-2xl p-4 sm:p-6 text-center col-span-2 hover-lift animate-count-up opacity-0" style={{ animationDelay: '1s', animationFillMode: 'forwards' }}>
-                  <p className="text-gray-500 text-xs sm:text-sm mb-1 sm:mb-2">누적 참여 금액</p>
-                  <p className="text-xl sm:text-3xl font-bold text-shimmer">₩128,500,000</p>
+                  <p className="text-gray-400 text-xs mt-2">최종 9라운드까지 진행</p>
                 </div>
               </div>
             </div>
