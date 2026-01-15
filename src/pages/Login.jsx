@@ -1,8 +1,17 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+
+// 테스트 계정
+const TEST_ACCOUNT = {
+  email: 'test@ruby.com',
+  password: '1234',
+  name: '김루비',
+};
 
 export default function Login() {
+  const navigate = useNavigate();
   const [isLogin, setIsLogin] = useState(true);
+  const [error, setError] = useState('');
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -13,8 +22,31 @@ export default function Login() {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    // 실제 구현에서는 API 호출
-    console.log('Form submitted:', formData);
+    setError('');
+
+    if (isLogin) {
+      // 로그인 처리
+      if (formData.email === TEST_ACCOUNT.email && formData.password === TEST_ACCOUNT.password) {
+        // 로그인 성공
+        localStorage.setItem('isLoggedIn', 'true');
+        localStorage.setItem('userName', TEST_ACCOUNT.name);
+        localStorage.setItem('userEmail', TEST_ACCOUNT.email);
+        navigate('/');
+      } else {
+        setError('이메일 또는 비밀번호가 일치하지 않습니다.');
+      }
+    } else {
+      // 회원가입 처리
+      if (formData.password !== formData.confirmPassword) {
+        setError('비밀번호가 일치하지 않습니다.');
+        return;
+      }
+      // 회원가입 성공 (테스트용)
+      localStorage.setItem('isLoggedIn', 'true');
+      localStorage.setItem('userName', formData.name);
+      localStorage.setItem('userEmail', formData.email);
+      navigate('/');
+    }
   };
 
   return (
@@ -31,20 +63,21 @@ export default function Login() {
 
       <div className="max-w-md w-full mx-auto px-4 relative">
         {/* Logo */}
-        <Link to="/" className="flex items-center justify-center gap-2 mb-6 sm:mb-8 animate-fade-in-down opacity-0" style={{ animationDelay: '0.1s', animationFillMode: 'forwards' }}>
-          <div className="w-8 h-8 sm:w-10 sm:h-10 relative">
-            <div className="absolute inset-0 bg-ruby-600 rounded-lg rotate-45 animate-ruby-rotate" />
-            <div className="absolute inset-1.5 bg-ruby-400/30 rounded-md rotate-45" />
+        <Link to="/" className="flex items-center justify-center mb-6 sm:mb-8 animate-fade-in-down opacity-0 group" style={{ animationDelay: '0.1s', animationFillMode: 'forwards' }}>
+          <div className="relative">
+            <img
+              src="/RUBY-ROUND/logo.png"
+              alt="Ruby Round"
+              className="h-10 sm:h-12 transition-all duration-500 group-hover:scale-110 group-hover:brightness-125"
+            />
+            <div className="absolute inset-0 bg-ruby-500/20 blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
           </div>
-          <span className="text-xl sm:text-2xl font-bold tracking-tight">
-            Ruby <span className="text-ruby-500">Round</span>
-          </span>
         </Link>
 
         {/* Tab */}
         <div className="flex bg-dark-800 rounded-xl p-1 mb-6 sm:mb-8 animate-fade-in-up opacity-0" style={{ animationDelay: '0.2s', animationFillMode: 'forwards' }}>
           <button
-            onClick={() => setIsLogin(true)}
+            onClick={() => { setIsLogin(true); setError(''); }}
             className={`flex-1 py-2.5 sm:py-3 rounded-lg font-medium transition-all duration-300 text-sm sm:text-base ${
               isLogin ? 'bg-ruby-600 text-white shadow-lg shadow-ruby-600/25' : 'text-gray-400 hover:text-white'
             }`}
@@ -52,7 +85,7 @@ export default function Login() {
             로그인
           </button>
           <button
-            onClick={() => setIsLogin(false)}
+            onClick={() => { setIsLogin(false); setError(''); }}
             className={`flex-1 py-2.5 sm:py-3 rounded-lg font-medium transition-all duration-300 text-sm sm:text-base ${
               !isLogin ? 'bg-ruby-600 text-white shadow-lg shadow-ruby-600/25' : 'text-gray-400 hover:text-white'
             }`}
@@ -60,6 +93,22 @@ export default function Login() {
             회원가입
           </button>
         </div>
+
+        {/* Test Account Info */}
+        {isLogin && (
+          <div className="mb-4 p-3 bg-ruby-600/10 border border-ruby-600/30 rounded-lg text-sm animate-fade-in-up opacity-0" style={{ animationDelay: '0.25s', animationFillMode: 'forwards' }}>
+            <p className="text-ruby-400 font-medium mb-1">테스트 계정</p>
+            <p className="text-gray-400">이메일: <span className="text-white">test@ruby.com</span></p>
+            <p className="text-gray-400">비밀번호: <span className="text-white">1234</span></p>
+          </div>
+        )}
+
+        {/* Error Message */}
+        {error && (
+          <div className="mb-4 p-3 bg-red-600/10 border border-red-600/30 rounded-lg text-sm text-red-400">
+            {error}
+          </div>
+        )}
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4 animate-fade-in-up opacity-0" style={{ animationDelay: '0.3s', animationFillMode: 'forwards' }}>

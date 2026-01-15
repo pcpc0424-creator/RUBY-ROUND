@@ -9,6 +9,14 @@ import MyPage from './pages/MyPage';
 import FAQ from './pages/FAQ';
 import About from './pages/About';
 import Login from './pages/Login';
+import Exchange from './pages/Exchange';
+import Participate from './pages/Participate';
+import Notice from './pages/Notice';
+import Contact from './pages/Contact';
+import Terms from './pages/Terms';
+import Refund from './pages/Refund';
+import Privacy from './pages/Privacy';
+import YouthPolicy from './pages/YouthPolicy';
 
 function App() {
   return (
@@ -28,6 +36,14 @@ function App() {
                 <Route path="/mypage" element={<MyPage />} />
                 <Route path="/faq" element={<FAQ />} />
                 <Route path="/about" element={<About />} />
+                <Route path="/exchange" element={<Exchange />} />
+                <Route path="/participate" element={<Participate />} />
+                <Route path="/notice" element={<Notice />} />
+                <Route path="/contact" element={<Contact />} />
+                <Route path="/terms" element={<Terms />} />
+                <Route path="/refund" element={<Refund />} />
+                <Route path="/privacy" element={<Privacy />} />
+                <Route path="/youth-policy" element={<YouthPolicy />} />
               </Routes>
             </Layout>
           }

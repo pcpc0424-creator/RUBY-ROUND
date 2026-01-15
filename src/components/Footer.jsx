@@ -95,18 +95,19 @@ export default function Footer() {
             </h3>
             <ul className="space-y-2">
               {[
-                { name: '이용약관', href: '#' },
-                { name: '개인정보처리방침', href: '#' },
-                { name: '사업자정보', href: '#' },
+                { name: '이용약관', href: '/terms' },
+                { name: '환불·청약철회', href: '/refund' },
+                { name: '개인정보처리방침', href: '/privacy' },
+                { name: '청소년보호정책', href: '/youth-policy' },
               ].map((item) => (
                 <li key={item.name}>
-                  <a
-                    href={item.href}
+                  <Link
+                    to={item.href}
                     className="text-gray-400 hover:text-ruby-400 text-sm transition-all duration-300 inline-flex items-center gap-2 group"
                   >
                     <span className="w-0 h-[1px] bg-ruby-500 group-hover:w-3 transition-all duration-300" />
                     {item.name}
-                  </a>
+                  </Link>
                 </li>
               ))}
             </ul>

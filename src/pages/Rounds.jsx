@@ -86,10 +86,10 @@ function RoundCard({ round, isSelected, onClick, index }) {
   return (
     <div
       onClick={onClick}
-      className={`card cursor-pointer transition-all duration-500 p-4 sm:p-6 hover-lift animate-fade-in-up opacity-0 ${
+      className={`card cursor-pointer transition-all duration-500 p-4 sm:p-6 hover-lift animate-fade-in-up ${
         isSelected ? 'border-ruby-500 bg-ruby-950/20' : 'hover-glow'
       } ${round.status === 'active' ? 'ring-2 ring-ruby-500/30 animate-border-glow' : ''}`}
-      style={{ animationDelay: `${0.1 + index * 0.08}s`, animationFillMode: 'forwards' }}
+      style={{ animationDelay: `${0.1 + index * 0.08}s` }}
     >
       <div className="flex items-center justify-between mb-2 sm:mb-4">
         <div className="flex items-center gap-2 sm:gap-3">
@@ -137,7 +137,7 @@ function RoundDetail({ round }) {
   if (!round) return null;
 
   return (
-    <div className="bg-dark-800 border border-dark-600 rounded-xl sm:rounded-2xl p-5 sm:p-8 sticky top-32 hover-glow animate-fade-in-scale opacity-0" style={{ animationDelay: '0.3s', animationFillMode: 'forwards' }}>
+    <div className="bg-dark-800 border border-dark-600 rounded-xl sm:rounded-2xl p-5 sm:p-8 sticky top-32 hover-glow animate-fade-in-scale" style={{ animationDelay: '0.3s' }}>
       <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
         <span className="text-ruby-500 font-medium text-sm sm:text-base">{round.number}</span>
         {round.status === 'active' && (
@@ -202,10 +202,10 @@ export default function Rounds() {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
         <div className="mb-6 sm:mb-12">
-          <h1 className="text-2xl sm:text-4xl font-bold mb-2 sm:mb-4 animate-fade-in-up opacity-0" style={{ animationDelay: '0.1s', animationFillMode: 'forwards' }}>
+          <h1 className="text-2xl sm:text-4xl font-bold mb-2 sm:mb-4 animate-fade-in-up" style={{ animationDelay: '0.1s' }}>
             라운드 <span className="text-shimmer">참여</span>
           </h1>
-          <p className="text-gray-400 text-sm sm:text-base animate-fade-in-up opacity-0" style={{ animationDelay: '0.2s', animationFillMode: 'forwards' }}>
+          <p className="text-gray-400 text-sm sm:text-base animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
             각 라운드에 참여하여 시즌 보상을 향해 나아가세요.
             라운드가 진행될수록 보상 기대치가 상승합니다.
           </p>
