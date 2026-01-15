@@ -18,11 +18,31 @@ import Refund from './pages/Refund';
 import Privacy from './pages/Privacy';
 import YouthPolicy from './pages/YouthPolicy';
 
+// Admin pages
+import AdminLayout from './components/admin/AdminLayout';
+import AdminLogin from './pages/admin/AdminLogin';
+import AdminDashboard from './pages/admin/AdminDashboard';
+import ExchangeManagement from './pages/admin/ExchangeManagement';
+import ExchangeDetail from './pages/admin/ExchangeDetail';
+import UserManagement from './pages/admin/UserManagement';
+
 function App() {
   return (
     <Router basename="/RUBY-ROUND">
       <Routes>
+        {/* Customer Login */}
         <Route path="/login" element={<Login />} />
+
+        {/* Admin Routes */}
+        <Route path="/admin/login" element={<AdminLogin />} />
+        <Route path="/admin" element={<AdminLayout />}>
+          <Route index element={<AdminDashboard />} />
+          <Route path="users" element={<UserManagement />} />
+          <Route path="exchange" element={<ExchangeManagement />} />
+          <Route path="exchange/:id" element={<ExchangeDetail />} />
+        </Route>
+
+        {/* Customer Routes */}
         <Route
           path="*"
           element={

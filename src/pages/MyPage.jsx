@@ -1,5 +1,8 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import ExchangeApplyForm from '../components/exchange/ExchangeApplyForm';
+import ExchangeComplete from '../components/exchange/ExchangeComplete';
+import ExchangeHistoryList from '../components/exchange/ExchangeHistoryList';
 
 // 샘플 데이터
 const userData = {
@@ -240,20 +243,42 @@ function PaymentHistory() {
   );
 }
 
-function ExchangeApply() {
+function ExchangeApply({ onNavigate }) {
+  const [view, setView] = useState('form'); // 'form' | 'complete'
+  const [completedApplication, setCompletedApplication] = useState(null);
+
+  const handleComplete = (application) => {
+    setCompletedApplication(application);
+    setView('complete');
+  };
+
+  const handleViewHistory = () => {
+    onNavigate('exchange-history');
+  };
+
+  const handleNewApplication = () => {
+    setCompletedApplication(null);
+    setView('form');
+  };
+
   return (
     <div className="space-y-4">
-      <h3 className="text-lg sm:text-xl font-bold">상품 교환 신청</h3>
+      <h3 className="text-lg sm:text-xl font-bold">
+        {view === 'form' ? '교환 신청' : '신청 완료'}
+      </h3>
       <div className="card p-4 sm:p-6">
-        <div className="text-center py-8">
-          <div className="w-16 h-16 bg-dark-700 rounded-full flex items-center justify-center mx-auto mb-4">
-            <svg className="w-8 h-8 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-            </svg>
-          </div>
-          <p className="text-gray-400 mb-4">현재 교환 가능한 상품이 없습니다.</p>
-          <p className="text-sm text-gray-500">시즌 종료 후 획득한 보석을 교환할 수 있습니다.</p>
-        </div>
+        {view === 'form' ? (
+          <ExchangeApplyForm
+            onComplete={handleComplete}
+            onCancel={null}
+          />
+        ) : (
+          <ExchangeComplete
+            application={completedApplication}
+            onViewHistory={handleViewHistory}
+            onNewApplication={handleNewApplication}
+          />
+        )}
       </div>
     </div>
   );
@@ -263,32 +288,7 @@ function ExchangeHistory() {
   return (
     <div className="space-y-4">
       <h3 className="text-lg sm:text-xl font-bold">교환 신청내역</h3>
-      {exchangeData.length > 0 ? (
-        <div className="space-y-3">
-          {exchangeData.map((item) => (
-            <div key={item.id} className="card p-4 sm:p-5">
-              <div className="flex items-center justify-between gap-2">
-                <div className="min-w-0 flex-1">
-                  <p className="font-medium text-sm sm:text-base truncate">{item.product}</p>
-                  <p className="text-xs sm:text-sm text-gray-400">{item.date}</p>
-                </div>
-                <div className="flex items-center gap-2 flex-shrink-0">
-                  <span className="px-2 py-1 text-xs rounded-full bg-green-600/20 text-green-400">
-                    {item.status}
-                  </span>
-                  <button className="text-xs sm:text-sm text-ruby-400 hover:underline whitespace-nowrap">
-                    상세
-                  </button>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <div className="card p-6 text-center text-gray-400">
-          교환 신청내역이 없습니다.
-        </div>
-      )}
+      <ExchangeHistoryList />
     </div>
   );
 }
@@ -519,6 +519,17 @@ export default function MyPage() {
     );
   }
 
+  const handleNavigate = (subMenuId) => {
+    // 해당 서브메뉴의 상위 메뉴 찾기
+    const parentMenu = menuItems.find(item =>
+      item.subItems.some(sub => sub.id === subMenuId)
+    );
+    if (parentMenu) {
+      setActiveMenu(parentMenu.id);
+      setActiveSubMenu(subMenuId);
+    }
+  };
+
   const renderContent = () => {
     switch (activeSubMenu) {
       case 'participation-history':
@@ -526,7 +537,7 @@ export default function MyPage() {
       case 'payment-history':
         return <PaymentHistory />;
       case 'exchange-apply':
-        return <ExchangeApply />;
+        return <ExchangeApply onNavigate={handleNavigate} />;
       case 'exchange-history':
         return <ExchangeHistory />;
       case 'delivery-tracking':
