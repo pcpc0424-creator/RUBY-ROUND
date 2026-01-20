@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { registerUser, createAdultVerificationRequest, checkAdultVerification } from '../api/exchangeApi';
+import { ADULT_VERIFICATION_METHODS } from '../constants/exchangeConstants';
 
 // 테스트 계정
 const TEST_ACCOUNT = {
@@ -12,40 +14,127 @@ export default function Login() {
   const navigate = useNavigate();
   const [isLogin, setIsLogin] = useState(true);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
     password: '',
     name: '',
+    phone: '',
     confirmPassword: '',
     agreeTerms: false,
+    requestAdultVerification: false,
+    birthDate: '',
   });
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setSuccess('');
+    setLoading(true);
 
-    if (isLogin) {
-      // 로그인 처리
-      if (formData.email === TEST_ACCOUNT.email && formData.password === TEST_ACCOUNT.password) {
-        // 로그인 성공
-        localStorage.setItem('isLoggedIn', 'true');
-        localStorage.setItem('userName', TEST_ACCOUNT.name);
-        localStorage.setItem('userEmail', TEST_ACCOUNT.email);
-        navigate('/');
+    try {
+      if (isLogin) {
+        // 로그인 처리
+        if (formData.email === TEST_ACCOUNT.email && formData.password === TEST_ACCOUNT.password) {
+          // 로그인 성공
+          localStorage.setItem('isLoggedIn', 'true');
+          localStorage.setItem('userName', TEST_ACCOUNT.name);
+          localStorage.setItem('userEmail', TEST_ACCOUNT.email);
+
+          // 성인 인증 상태 확인
+          const verificationResult = await checkAdultVerification(TEST_ACCOUNT.email);
+          if (verificationResult.success) {
+            localStorage.setItem('adultVerified', verificationResult.data.isVerified ? 'true' : 'false');
+          }
+
+          navigate('/');
+        } else {
+          setError('이메일 또는 비밀번호가 일치하지 않습니다.');
+        }
       } else {
-        setError('이메일 또는 비밀번호가 일치하지 않습니다.');
+        // 회원가입 처리
+        if (formData.password !== formData.confirmPassword) {
+          setError('비밀번호가 일치하지 않습니다.');
+          setLoading(false);
+          return;
+        }
+
+        if (formData.requestAdultVerification && !formData.birthDate) {
+          setError('성인 인증을 위해 생년월일을 입력해주세요.');
+          setLoading(false);
+          return;
+        }
+
+        // 나이 확인 (만 19세 이상)
+        if (formData.requestAdultVerification && formData.birthDate) {
+          const birthDate = new Date(formData.birthDate);
+          const today = new Date();
+          let age = today.getFullYear() - birthDate.getFullYear();
+          const monthDiff = today.getMonth() - birthDate.getMonth();
+          if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+            age--;
+          }
+          if (age < 19) {
+            setError('성인 인증은 만 19세 이상만 가능합니다.');
+            setLoading(false);
+            return;
+          }
+        }
+
+        // 사용자 등록
+        const registerResult = await registerUser({
+          name: formData.name,
+          email: formData.email,
+          password: formData.password,
+          phone: formData.phone,
+          birthDate: formData.birthDate,
+        });
+
+        if (!registerResult.success) {
+          setError(registerResult.error || '회원가입에 실패했습니다.');
+          setLoading(false);
+          return;
+        }
+
+        // 성인 인증 요청
+        if (formData.requestAdultVerification) {
+          const verificationResult = await createAdultVerificationRequest({
+            userEmail: formData.email,
+            userName: formData.name,
+            userPhone: formData.phone,
+            birthDate: formData.birthDate,
+            method: 'phone', // 휴대폰 본인인증
+          });
+
+          if (verificationResult.success) {
+            setSuccess('회원가입이 완료되었습니다. 성인 인증 요청이 접수되었으며, 관리자 승인 후 이용 가능합니다.');
+          } else {
+            setSuccess('회원가입이 완료되었습니다. 성인 인증 요청은 실패했습니다. 마이페이지에서 다시 시도해주세요.');
+          }
+        } else {
+          setSuccess('회원가입이 완료되었습니다. 로그인해주세요.');
+        }
+
+        // 로그인 상태로 전환
+        setTimeout(() => {
+          setIsLogin(true);
+          setFormData({
+            email: formData.email,
+            password: '',
+            name: '',
+            phone: '',
+            confirmPassword: '',
+            agreeTerms: false,
+            requestAdultVerification: false,
+            birthDate: '',
+          });
+        }, 2000);
       }
-    } else {
-      // 회원가입 처리
-      if (formData.password !== formData.confirmPassword) {
-        setError('비밀번호가 일치하지 않습니다.');
-        return;
-      }
-      // 회원가입 성공 (테스트용)
-      localStorage.setItem('isLoggedIn', 'true');
-      localStorage.setItem('userName', formData.name);
-      localStorage.setItem('userEmail', formData.email);
-      navigate('/');
+    } catch (err) {
+      setError('처리 중 오류가 발생했습니다.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -107,6 +196,13 @@ export default function Login() {
         {error && (
           <div className="mb-4 p-3 bg-red-600/10 border border-red-600/30 rounded-lg text-sm text-red-400">
             {error}
+          </div>
+        )}
+
+        {/* Success Message */}
+        {success && (
+          <div className="mb-4 p-3 bg-green-600/10 border border-green-600/30 rounded-lg text-sm text-green-400">
+            {success}
           </div>
         )}
 
@@ -172,6 +268,57 @@ export default function Login() {
                 />
               </div>
 
+              <div className="animate-fade-in-up">
+                <label className="block text-xs sm:text-sm font-medium text-gray-300 mb-1.5 sm:mb-2">
+                  휴대폰 번호
+                </label>
+                <input
+                  type="tel"
+                  value={formData.phone}
+                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  className="w-full px-3 py-2.5 sm:px-4 sm:py-3 bg-dark-800 border border-dark-600 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-ruby-500 focus:ring-2 focus:ring-ruby-500/20 transition-all duration-300 text-sm sm:text-base"
+                  placeholder="010-1234-5678"
+                />
+              </div>
+
+              {/* 성인 인증 섹션 */}
+              <div className="animate-fade-in-up p-4 bg-dark-800/50 border border-dark-600 rounded-lg">
+                <div className="flex items-start gap-2 sm:gap-3 mb-3">
+                  <input
+                    type="checkbox"
+                    id="requestAdultVerification"
+                    checked={formData.requestAdultVerification}
+                    onChange={(e) => setFormData({ ...formData, requestAdultVerification: e.target.checked })}
+                    className="mt-1 w-4 h-4 bg-dark-800 border border-dark-600 rounded text-ruby-600 focus:ring-ruby-500"
+                  />
+                  <label htmlFor="requestAdultVerification" className="text-xs sm:text-sm text-gray-300">
+                    <span className="font-medium text-ruby-400">성인 인증 요청</span>
+                    <span className="block text-gray-500 mt-0.5">일부 서비스 이용을 위해 성인 인증이 필요합니다.</span>
+                  </label>
+                </div>
+
+                {formData.requestAdultVerification && (
+                  <div className="mt-3 pt-3 border-t border-dark-600">
+                    <label className="block text-xs sm:text-sm font-medium text-gray-300 mb-1.5 sm:mb-2">
+                      생년월일 <span className="text-ruby-400">*</span>
+                    </label>
+                    <input
+                      type="date"
+                      value={formData.birthDate}
+                      onChange={(e) => setFormData({ ...formData, birthDate: e.target.value })}
+                      className="w-full px-3 py-2.5 sm:px-4 sm:py-3 bg-dark-700 border border-dark-600 rounded-lg text-white focus:outline-none focus:border-ruby-500 focus:ring-2 focus:ring-ruby-500/20 transition-all duration-300 text-sm sm:text-base"
+                      max={new Date(new Date().setFullYear(new Date().getFullYear() - 19)).toISOString().split('T')[0]}
+                    />
+                    <p className="mt-2 text-xs text-gray-500">
+                      * 만 19세 이상만 성인 인증 신청이 가능합니다.
+                    </p>
+                    <p className="mt-1 text-xs text-yellow-400/70">
+                      * 성인 인증은 관리자 승인 후 완료됩니다.
+                    </p>
+                  </div>
+                )}
+              </div>
+
               <div className="flex items-start gap-2 sm:gap-3 animate-fade-in-up">
                 <input
                   type="checkbox"
@@ -191,9 +338,22 @@ export default function Login() {
 
           <button
             type="submit"
-            className="w-full btn-primary py-3 sm:py-4 text-base sm:text-lg relative overflow-hidden group"
+            disabled={loading}
+            className="w-full btn-primary py-3 sm:py-4 text-base sm:text-lg relative overflow-hidden group disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <span className="relative z-10">{isLogin ? '로그인' : '회원가입'}</span>
+            <span className="relative z-10">
+              {loading ? (
+                <span className="flex items-center justify-center gap-2">
+                  <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                  처리 중...
+                </span>
+              ) : (
+                isLogin ? '로그인' : '회원가입'
+              )}
+            </span>
             <div className="absolute inset-0 bg-gradient-to-r from-ruby-700 to-ruby-500 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
             <div className="absolute inset-0 animate-shimmer opacity-30" />
           </button>

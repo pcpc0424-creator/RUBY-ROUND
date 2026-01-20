@@ -7,8 +7,11 @@ import {
   deductUserBalance,
   getUserStatistics,
   initializeSampleUsers,
+  getCustomerDetail,
+  getAdminAuth,
 } from '../../api/exchangeApi';
 import { formatAmount, getRelativeTime } from '../../utils/localStorage';
+import { ADULT_VERIFICATION_STATUS } from '../../constants/exchangeConstants';
 
 export default function UserManagement() {
   const [users, setUsers] = useState([]);
@@ -17,9 +20,12 @@ export default function UserManagement() {
   const [filters, setFilters] = useState({ search: '', status: '' });
   const [selectedUser, setSelectedUser] = useState(null);
   const [showModal, setShowModal] = useState(false);
-  const [modalType, setModalType] = useState(''); // 'detail' | 'charge' | 'deduct'
+  const [modalType, setModalType] = useState(''); // 'detail' | 'charge' | 'deduct' | 'history'
   const [balanceAmount, setBalanceAmount] = useState('');
   const [balanceDescription, setBalanceDescription] = useState('');
+  const [customerDetail, setCustomerDetail] = useState(null);
+  const [detailTab, setDetailTab] = useState('info'); // 'info' | 'payments' | 'participations' | 'ledger'
+  const auth = getAdminAuth();
 
   useEffect(() => {
     initializeSampleUsers();
@@ -47,7 +53,13 @@ export default function UserManagement() {
     const result = await getUserDetail(user.email);
     if (result.success) {
       setSelectedUser(result.data);
+      // 고객 상세 정보 (참여이력, 결제이력, 원장 등)
+      const detailResult = await getCustomerDetail(user.email);
+      if (detailResult.success) {
+        setCustomerDetail(detailResult.data);
+      }
       setModalType('detail');
+      setDetailTab('info');
       setShowModal(true);
     }
   };
@@ -107,7 +119,9 @@ export default function UserManagement() {
   const closeModal = () => {
     setShowModal(false);
     setSelectedUser(null);
+    setCustomerDetail(null);
     setModalType('');
+    setDetailTab('info');
     setBalanceAmount('');
     setBalanceDescription('');
   };
@@ -309,73 +323,196 @@ export default function UserManagement() {
             {/* 모달 내용 */}
             <div className="p-6">
               {modalType === 'detail' && (
-                <div className="space-y-6">
-                  {/* 기본 정보 */}
-                  <div className="space-y-3">
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">이름</span>
-                      <span className="text-white font-medium">{selectedUser.name}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">이메일</span>
-                      <span className="text-white">{selectedUser.email}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">연락처</span>
-                      <span className="text-white">{selectedUser.phone || '-'}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">상태</span>
-                      <span className={selectedUser.status === 'active' ? 'text-green-400' : 'text-gray-400'}>
-                        {selectedUser.status === 'active' ? '활성' : '비활성'}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">가입일</span>
-                      <span className="text-white">{new Date(selectedUser.createdAt).toLocaleDateString('ko-KR')}</span>
-                    </div>
+                <div className="space-y-4">
+                  {/* 탭 네비게이션 */}
+                  <div className="flex border-b border-dark-600 overflow-x-auto">
+                    {[
+                      { key: 'info', label: '기본정보' },
+                      { key: 'payments', label: '결제이력' },
+                      { key: 'participations', label: '참여이력' },
+                      { key: 'ledger', label: '교환금내역' },
+                    ].map((tab) => (
+                      <button
+                        key={tab.key}
+                        onClick={() => setDetailTab(tab.key)}
+                        className={`px-4 py-2 text-sm whitespace-nowrap border-b-2 transition-colors ${
+                          detailTab === tab.key
+                            ? 'border-ruby-500 text-ruby-400'
+                            : 'border-transparent text-gray-400 hover:text-white'
+                        }`}
+                      >
+                        {tab.label}
+                      </button>
+                    ))}
                   </div>
 
-                  {/* 교환금 정보 */}
-                  <div className="bg-dark-700/50 rounded-xl p-4">
-                    <h3 className="text-sm font-medium text-gray-400 mb-3">교환금 잔액</h3>
-                    <p className="text-3xl font-bold text-ruby-400">
-                      {formatAmount(selectedUser.balance?.availableBalance || 0)}
-                    </p>
-                    <div className="flex gap-2 mt-4">
-                      <button
-                        onClick={() => setModalType('charge')}
-                        className="flex-1 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors text-sm"
-                      >
-                        충전
-                      </button>
-                      <button
-                        onClick={() => setModalType('deduct')}
-                        className="flex-1 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors text-sm"
-                      >
-                        차감
-                      </button>
-                    </div>
-                  </div>
+                  {/* 기본 정보 탭 */}
+                  {detailTab === 'info' && (
+                    <div className="space-y-6">
+                      <div className="space-y-3">
+                        <div className="flex justify-between">
+                          <span className="text-gray-400">이름</span>
+                          <span className="text-white font-medium">{selectedUser.name}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-400">이메일</span>
+                          <span className="text-white">{selectedUser.email}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-400">연락처</span>
+                          <span className="text-white">{selectedUser.phone || '-'}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-400">상태</span>
+                          <span className={selectedUser.status === 'active' ? 'text-green-400' : 'text-gray-400'}>
+                            {selectedUser.status === 'active' ? '활성' : '비활성'}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-400">성인인증</span>
+                          <span className={`px-2 py-0.5 text-xs rounded ${
+                            customerDetail?.adultVerification?.status === 'verified'
+                              ? 'bg-green-500/20 text-green-400'
+                              : customerDetail?.adultVerification?.status === 'pending'
+                              ? 'bg-yellow-500/20 text-yellow-400'
+                              : 'bg-gray-500/20 text-gray-400'
+                          }`}>
+                            {customerDetail?.adultVerification?.status
+                              ? ADULT_VERIFICATION_STATUS[customerDetail.adultVerification.status]?.label || '미인증'
+                              : '미인증'}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-400">가입일</span>
+                          <span className="text-white">{new Date(selectedUser.createdAt).toLocaleDateString('ko-KR')}</span>
+                        </div>
+                      </div>
 
-                  {/* 상태 변경 */}
-                  <div className="flex gap-2">
-                    {selectedUser.status === 'active' ? (
-                      <button
-                        onClick={() => handleStatusChange(selectedUser.id, 'inactive')}
-                        className="flex-1 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors text-sm"
-                      >
-                        비활성화
-                      </button>
-                    ) : (
-                      <button
-                        onClick={() => handleStatusChange(selectedUser.id, 'active')}
-                        className="flex-1 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors text-sm"
-                      >
-                        활성화
-                      </button>
-                    )}
-                  </div>
+                      {/* 교환금 정보 */}
+                      <div className="bg-dark-700/50 rounded-xl p-4">
+                        <h3 className="text-sm font-medium text-gray-400 mb-3">교환금 잔액</h3>
+                        <p className="text-3xl font-bold text-ruby-400">
+                          {formatAmount(selectedUser.balance?.availableBalance || 0)}
+                        </p>
+                        <div className="flex gap-2 mt-4">
+                          <button
+                            onClick={() => setModalType('charge')}
+                            className="flex-1 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors text-sm"
+                          >
+                            충전
+                          </button>
+                          <button
+                            onClick={() => setModalType('deduct')}
+                            className="flex-1 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors text-sm"
+                          >
+                            차감
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* 상태 변경 */}
+                      <div className="flex gap-2">
+                        {selectedUser.status === 'active' ? (
+                          <button
+                            onClick={() => handleStatusChange(selectedUser.id, 'inactive')}
+                            className="flex-1 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors text-sm"
+                          >
+                            비활성화
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => handleStatusChange(selectedUser.id, 'active')}
+                            className="flex-1 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors text-sm"
+                          >
+                            활성화
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 결제 이력 탭 */}
+                  {detailTab === 'payments' && (
+                    <div className="space-y-3 max-h-80 overflow-y-auto">
+                      {customerDetail?.payments?.length > 0 ? (
+                        customerDetail.payments.map((payment, idx) => (
+                          <div key={idx} className="bg-dark-700/50 rounded-lg p-3">
+                            <div className="flex justify-between items-start mb-2">
+                              <span className="text-white font-medium">{formatAmount(payment.amount)}</span>
+                              <span className={`px-2 py-0.5 text-xs rounded ${
+                                payment.status === 'completed' ? 'bg-green-500/20 text-green-400' :
+                                payment.status === 'pending' ? 'bg-yellow-500/20 text-yellow-400' :
+                                'bg-red-500/20 text-red-400'
+                              }`}>
+                                {payment.status === 'completed' ? '완료' :
+                                 payment.status === 'pending' ? '대기' : '실패'}
+                              </span>
+                            </div>
+                            <div className="text-sm text-gray-400">
+                              <p>{payment.roundName || `라운드 ${payment.roundId}`}</p>
+                              <p>{new Date(payment.createdAt).toLocaleString('ko-KR')}</p>
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <p className="text-gray-500 text-center py-8">결제 이력이 없습니다.</p>
+                      )}
+                    </div>
+                  )}
+
+                  {/* 참여 이력 탭 */}
+                  {detailTab === 'participations' && (
+                    <div className="space-y-3 max-h-80 overflow-y-auto">
+                      {customerDetail?.participations?.length > 0 ? (
+                        customerDetail.participations.map((part, idx) => (
+                          <div key={idx} className="bg-dark-700/50 rounded-lg p-3">
+                            <div className="flex justify-between items-start mb-2">
+                              <span className="text-white font-medium">{part.roundName || `라운드 ${part.roundId}`}</span>
+                              <span className={`px-2 py-0.5 text-xs rounded ${
+                                part.isWinner ? 'bg-ruby-500/20 text-ruby-400' : 'bg-gray-500/20 text-gray-400'
+                              }`}>
+                                {part.isWinner ? '당첨' : '미당첨'}
+                              </span>
+                            </div>
+                            <div className="text-sm text-gray-400">
+                              <p>참여 수량: {part.quantity}구좌</p>
+                              <p>{new Date(part.createdAt).toLocaleString('ko-KR')}</p>
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <p className="text-gray-500 text-center py-8">참여 이력이 없습니다.</p>
+                      )}
+                    </div>
+                  )}
+
+                  {/* 교환금 내역 탭 */}
+                  {detailTab === 'ledger' && (
+                    <div className="space-y-3 max-h-80 overflow-y-auto">
+                      {customerDetail?.ledgerEntries?.length > 0 ? (
+                        customerDetail.ledgerEntries.map((entry, idx) => (
+                          <div key={idx} className="bg-dark-700/50 rounded-lg p-3">
+                            <div className="flex justify-between items-start mb-2">
+                              <span className={`font-medium ${
+                                entry.type === 'credit' ? 'text-green-400' : 'text-red-400'
+                              }`}>
+                                {entry.type === 'credit' ? '+' : '-'}{formatAmount(entry.amount)}
+                              </span>
+                              <span className="text-xs text-gray-500">
+                                잔액: {formatAmount(entry.balanceAfter)}
+                              </span>
+                            </div>
+                            <div className="text-sm text-gray-400">
+                              <p>{entry.description || entry.reason || '-'}</p>
+                              <p>{new Date(entry.createdAt).toLocaleString('ko-KR')}</p>
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <p className="text-gray-500 text-center py-8">교환금 내역이 없습니다.</p>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
 

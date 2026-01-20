@@ -228,6 +228,227 @@ export const STORAGE_KEYS = {
   ADMIN_AUTH: 'rubyround_admin_auth',
   CONSULTATION_MODAL_CONTENT: 'rubyround_consultation_modal_content',
   USERS: 'rubyround_users',
+  // 시즌 정산 관련
+  SEASONS: 'rubyround_seasons',
+  ROUNDS: 'rubyround_rounds',
+  ROUND_PAYMENTS: 'rubyround_round_payments',
+  SEASON_SETTLEMENTS: 'rubyround_season_settlements',
+  // 배송 관리
+  DELIVERIES: 'rubyround_deliveries',
+  // 성인 인증
+  ADULT_VERIFICATIONS: 'rubyround_adult_verifications',
+  // 라운드 결과
+  ROUND_RESULTS: 'rubyround_round_results',
+  // 보상/당첨
+  REWARDS: 'rubyround_rewards',
+  // 쿠폰
+  COUPONS: 'rubyround_coupons',
+  COUPON_USAGES: 'rubyround_coupon_usages',
+  // 감사 로그
+  AUDIT_LOGS: 'rubyround_audit_logs',
+  // 시스템 설정
+  SYSTEM_SETTINGS: 'rubyround_system_settings',
+};
+
+// 배송 상태
+export const DELIVERY_STATUS = {
+  PENDING: {
+    key: 'pending',
+    label: '배송대기',
+    color: 'gray',
+    bgClass: 'bg-gray-500/20 text-gray-400 border-gray-500/30',
+  },
+  READY: {
+    key: 'ready',
+    label: '출고준비',
+    color: 'blue',
+    bgClass: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
+  },
+  SHIPPED: {
+    key: 'shipped',
+    label: '배송중',
+    color: 'cyan',
+    bgClass: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30',
+  },
+  DELIVERED: {
+    key: 'delivered',
+    label: '배송완료',
+    color: 'green',
+    bgClass: 'bg-green-500/20 text-green-400 border-green-500/30',
+  },
+  RETURNED: {
+    key: 'returned',
+    label: '반송',
+    color: 'red',
+    bgClass: 'bg-red-500/20 text-red-400 border-red-500/30',
+  },
+};
+
+// 택배사 목록
+export const COURIER_LIST = [
+  { key: 'cj', label: 'CJ대한통운', trackingUrl: 'https://www.cjlogistics.com/ko/tool/parcel/tracking?gnbInvcNo=' },
+  { key: 'hanjin', label: '한진택배', trackingUrl: 'https://www.hanjin.com/kor/CMS/DeliveryMgr/WaybillResult.do?mession-check=Y&wblnumText2=' },
+  { key: 'lotte', label: '롯데택배', trackingUrl: 'https://www.lotteglogis.com/home/reservation/tracking/linkView?InvNo=' },
+  { key: 'logen', label: '로젠택배', trackingUrl: 'https://www.ilogen.com/web/personal/trace/' },
+  { key: 'post', label: '우체국택배', trackingUrl: 'https://service.epost.go.kr/trace.RetrieveDomRi498.postal?sid1=' },
+  { key: 'gs', label: 'GS Postbox', trackingUrl: 'https://www.cvsnet.co.kr/invoice/tracking.do?invoice_no=' },
+  { key: 'kdexp', label: '경동택배', trackingUrl: 'https://kdexp.com/service/delivery/etc/delivery.do?barcode=' },
+  { key: 'other', label: '기타', trackingUrl: '' },
+];
+
+// 성인 인증 상태
+export const ADULT_VERIFICATION_STATUS = {
+  PENDING: {
+    key: 'pending',
+    label: '인증대기',
+    color: 'yellow',
+    bgClass: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
+  },
+  APPROVED: {
+    key: 'approved',
+    label: '인증완료',
+    color: 'green',
+    bgClass: 'bg-green-500/20 text-green-400 border-green-500/30',
+  },
+  REJECTED: {
+    key: 'rejected',
+    label: '인증거부',
+    color: 'red',
+    bgClass: 'bg-red-500/20 text-red-400 border-red-500/30',
+  },
+  EXPIRED: {
+    key: 'expired',
+    label: '만료',
+    color: 'gray',
+    bgClass: 'bg-gray-500/20 text-gray-400 border-gray-500/30',
+  },
+};
+
+// 성인 인증 방법
+export const ADULT_VERIFICATION_METHODS = [
+  { key: 'phone', label: '휴대폰 본인인증' },
+  { key: 'ipin', label: 'I-PIN 인증' },
+  { key: 'card', label: '신용카드 인증' },
+  { key: 'manual', label: '관리자 수동 인증' },
+];
+
+// 라운드 결과 상태
+export const ROUND_RESULT_STATUS = {
+  PENDING: { key: 'pending', label: '대기중', color: 'gray' },
+  PROCESSING: { key: 'processing', label: '추첨중', color: 'yellow' },
+  CONFIRMED: { key: 'confirmed', label: '확정', color: 'green' },
+  LOCKED: { key: 'locked', label: '잠금(확정완료)', color: 'blue' },
+};
+
+// 보상/당첨 지급 상태
+export const REWARD_STATUS = {
+  PENDING: { key: 'pending', label: '지급대기', color: 'gray', bgClass: 'bg-gray-500/20 text-gray-400 border-gray-500/30' },
+  CONFIRMED: { key: 'confirmed', label: '구성확정', color: 'blue', bgClass: 'bg-blue-500/20 text-blue-400 border-blue-500/30' },
+  PROCESSING: { key: 'processing', label: '지급진행중', color: 'yellow', bgClass: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30' },
+  COMPLETED: { key: 'completed', label: '지급완료', color: 'green', bgClass: 'bg-green-500/20 text-green-400 border-green-500/30' },
+  EXCEPTION: { key: 'exception', label: '예외처리', color: 'red', bgClass: 'bg-red-500/20 text-red-400 border-red-500/30' },
+  CANCELLED: { key: 'cancelled', label: '취소', color: 'red', bgClass: 'bg-red-500/20 text-red-400 border-red-500/30' },
+};
+
+// 보상 유형
+export const REWARD_TYPE = {
+  RUBY: { key: 'ruby', label: '루비 보석', icon: '💎' },
+  EXCHANGE_CREDIT: { key: 'exchange_credit', label: '교환금', icon: '💰' },
+  COUPON: { key: 'coupon', label: '쿠폰', icon: '🎟️' },
+  GIFT: { key: 'gift', label: '사은품', icon: '🎁' },
+};
+
+// 쿠폰 상태
+export const COUPON_STATUS = {
+  ACTIVE: { key: 'active', label: '활성', color: 'green', bgClass: 'bg-green-500/20 text-green-400 border-green-500/30' },
+  INACTIVE: { key: 'inactive', label: '비활성', color: 'gray', bgClass: 'bg-gray-500/20 text-gray-400 border-gray-500/30' },
+  EXPIRED: { key: 'expired', label: '만료', color: 'red', bgClass: 'bg-red-500/20 text-red-400 border-red-500/30' },
+};
+
+// 쿠폰 유형
+export const COUPON_TYPE = {
+  PERCENTAGE: { key: 'percentage', label: '정률 할인 (%)' },
+  FIXED: { key: 'fixed', label: '정액 할인 (원)' },
+  FREE_SHIPPING: { key: 'free_shipping', label: '무료 배송' },
+  BONUS_CREDIT: { key: 'bonus_credit', label: '보너스 교환금' },
+};
+
+// 쿠폰 사용 상태
+export const COUPON_USAGE_STATUS = {
+  ISSUED: { key: 'issued', label: '발급됨', color: 'blue' },
+  USED: { key: 'used', label: '사용완료', color: 'green' },
+  EXPIRED: { key: 'expired', label: '만료', color: 'gray' },
+  CANCELLED: { key: 'cancelled', label: '취소', color: 'red' },
+};
+
+// 감사 로그 액션 유형
+export const AUDIT_ACTION_TYPE = {
+  CREATE: { key: 'create', label: '생성', color: 'green' },
+  UPDATE: { key: 'update', label: '수정', color: 'blue' },
+  DELETE: { key: 'delete', label: '삭제', color: 'red' },
+  APPROVE: { key: 'approve', label: '승인', color: 'green' },
+  REJECT: { key: 'reject', label: '거부', color: 'red' },
+  LOGIN: { key: 'login', label: '로그인', color: 'gray' },
+  LOGOUT: { key: 'logout', label: '로그아웃', color: 'gray' },
+  EXPORT: { key: 'export', label: '내보내기', color: 'yellow' },
+  STATUS_CHANGE: { key: 'status_change', label: '상태변경', color: 'blue' },
+};
+
+// 감사 로그 대상 유형
+export const AUDIT_TARGET_TYPE = {
+  USER: { key: 'user', label: '사용자' },
+  ADMIN: { key: 'admin', label: '관리자' },
+  ROUND: { key: 'round', label: '라운드' },
+  SEASON: { key: 'season', label: '시즌' },
+  PAYMENT: { key: 'payment', label: '결제' },
+  EXCHANGE: { key: 'exchange', label: '교환' },
+  DELIVERY: { key: 'delivery', label: '배송' },
+  REWARD: { key: 'reward', label: '보상' },
+  COUPON: { key: 'coupon', label: '쿠폰' },
+  VERIFICATION: { key: 'verification', label: '인증' },
+  SYSTEM: { key: 'system', label: '시스템' },
+};
+
+// 시즌 상태
+export const SEASON_STATUS = {
+  UPCOMING: { key: 'upcoming', label: '예정', color: 'gray' },
+  ACTIVE: { key: 'active', label: '진행중', color: 'green' },
+  ENDED: { key: 'ended', label: '종료', color: 'yellow' },
+  SETTLED: { key: 'settled', label: '정산완료', color: 'blue' },
+};
+
+// 라운드 상태
+export const ROUND_STATUS = {
+  UPCOMING: { key: 'upcoming', label: '예정', color: 'gray' },
+  ACTIVE: { key: 'active', label: '참여가능', color: 'green' },
+  COMPLETED: { key: 'completed', label: '종료', color: 'blue' },
+};
+
+// 결제 상태
+export const PAYMENT_STATUS = {
+  SUCCESS: { key: 'success', label: '결제완료', color: 'green' },
+  CANCELLED: { key: 'cancelled', label: '취소', color: 'red' },
+  REFUNDED: { key: 'refunded', label: '환불', color: 'orange' },
+};
+
+// 정산 유형
+export const SETTLEMENT_TYPE = {
+  WITH_WINNER: { key: 'with_winner', label: '당첨 라운드 있음' },
+  NO_WINNER: { key: 'no_winner', label: '당첨 라운드 없음 (전체 미당첨)' },
+};
+
+// 원장 타입
+export const LEDGER_TYPE = {
+  CREDIT: { key: 'credit', label: '적립' },
+  DEBIT: { key: 'debit', label: '차감' },
+};
+
+// 원장 사유
+export const LEDGER_REASON = {
+  SEASON_SETTLEMENT: { key: 'SEASON_SETTLEMENT', label: '시즌 정산 적립' },
+  EXCHANGE_REQUEST_APPROVED: { key: 'EXCHANGE_REQUEST_APPROVED', label: '교환 신청 승인 차감' },
+  ADMIN_CHARGE: { key: 'ADMIN_CHARGE', label: '관리자 충전' },
+  ADMIN_DEDUCT: { key: 'ADMIN_DEDUCT', label: '관리자 차감' },
 };
 
 // 상담 접수 모달 기본 콘텐츠
@@ -269,18 +490,48 @@ export const ADMIN_ROLES = {
   CEO: {
     key: 'ceo',
     label: '대표',
-    permissions: ['view', 'consult', 'approve', 'cancel', 'manage_users'],
+    permissions: [
+      'view',                    // 조회
+      'consult',                 // 상담
+      'approve',                 // 승인 (대표만)
+      'cancel',                  // 취소
+      'manage_users',            // 사용자 관리
+      'manage_delivery',         // 배송 관리
+      'manage_adult_verification', // 성인 인증 관리
+      'approve_adult_verification', // 성인 인증 승인 (대표만)
+      'manage_seasons',          // 시즌 관리
+      'manage_rounds',           // 라운드 관리
+      'manage_settlement',       // 정산 관리
+      'manage_modal',            // 모달 설정
+    ],
   },
   CS_MANAGER: {
     key: 'cs_manager',
     label: 'CS 관리자',
-    permissions: ['view', 'consult', 'cancel'],
+    permissions: [
+      'view',                    // 조회
+      'consult',                 // 상담
+      'cancel',                  // 취소
+      'manage_users',            // 사용자 관리
+      'manage_delivery',         // 배송 관리
+      'manage_adult_verification', // 성인 인증 관리 (승인 제외)
+      'manage_seasons',          // 시즌 관리
+      'manage_rounds',           // 라운드 관리
+      'manage_settlement',       // 정산 관리
+      // 승인 권한 제외: approve, approve_adult_verification, manage_modal
+    ],
   },
   CS_STAFF: {
     key: 'cs_staff',
     label: 'CS 담당자',
     permissions: ['view', 'consult'],
   },
+};
+
+// 권한 확인 함수
+export const hasPermission = (role, permission) => {
+  const roleConfig = Object.values(ADMIN_ROLES).find(r => r.key === role);
+  return roleConfig?.permissions?.includes(permission) || false;
 };
 
 // 상태 변경 가능 목록 (현재 상태 -> 변경 가능 상태)

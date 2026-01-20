@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import ExchangeApplyForm from '../components/exchange/ExchangeApplyForm';
 import ExchangeComplete from '../components/exchange/ExchangeComplete';
 import ExchangeHistoryList from '../components/exchange/ExchangeHistoryList';
+import { getUserLedger, getPaymentsByUser } from '../api/seasonApi';
 
 // 샘플 데이터
 const userData = {
@@ -50,6 +51,18 @@ const menuItems = [
     subItems: [
       { id: 'participation-history', name: '라운드 참여내역' },
       { id: 'payment-history', name: '결제내역' },
+    ],
+  },
+  {
+    id: 'balance',
+    name: 'MY 교환금',
+    icon: (
+      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+    ),
+    subItems: [
+      { id: 'balance-overview', name: '잔액/내역' },
     ],
   },
   {
@@ -289,6 +302,263 @@ function ExchangeHistory() {
     <div className="space-y-4">
       <h3 className="text-lg sm:text-xl font-bold">교환 신청내역</h3>
       <ExchangeHistoryList />
+    </div>
+  );
+}
+
+function BalanceOverview() {
+  const [balanceData, setBalanceData] = useState(null);
+  const [payments, setPayments] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('credit'); // 'credit' | 'debit' | 'payments'
+
+  const userEmail = localStorage.getItem('userEmail') || 'test@ruby.com';
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const loadData = async () => {
+    setIsLoading(true);
+    const [balanceRes, paymentsRes] = await Promise.all([
+      getUserLedger(userEmail),
+      getPaymentsByUser(userEmail),
+    ]);
+
+    if (balanceRes.success) {
+      setBalanceData(balanceRes.data);
+    }
+    if (paymentsRes.success) {
+      setPayments(paymentsRes.data);
+    }
+    setIsLoading(false);
+  };
+
+  if (isLoading) {
+    return (
+      <div className="space-y-4">
+        <h3 className="text-lg sm:text-xl font-bold">교환금 잔액/내역</h3>
+        <div className="card p-6 text-center">
+          <div className="animate-spin w-8 h-8 border-2 border-ruby-500 border-t-transparent rounded-full mx-auto"></div>
+          <p className="text-gray-400 mt-4">로딩 중...</p>
+        </div>
+      </div>
+    );
+  }
+
+  const creditLedger = balanceData?.ledger?.filter(l => l.type === 'credit') || [];
+  const debitLedger = balanceData?.ledger?.filter(l => l.type === 'debit') || [];
+
+  return (
+    <div className="space-y-4">
+      <h3 className="text-lg sm:text-xl font-bold">교환금 잔액/내역</h3>
+
+      {/* 잔액 카드 */}
+      <div className="card p-5 sm:p-6 bg-gradient-to-r from-ruby-950/50 to-dark-800 border-ruby-900/50">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-12 h-12 bg-ruby-600/20 rounded-full flex items-center justify-center">
+            <svg className="w-6 h-6 text-ruby-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <div>
+            <p className="text-gray-400 text-sm">현재 교환금 잔액</p>
+            <p className="text-2xl sm:text-3xl font-bold text-shimmer">
+              ₩{(balanceData?.totalBalance || 0).toLocaleString()}
+            </p>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-4 pt-4 border-t border-dark-600">
+          <div>
+            <p className="text-gray-500 text-xs sm:text-sm">사용 가능</p>
+            <p className="text-lg font-medium text-green-400">₩{(balanceData?.availableBalance || 0).toLocaleString()}</p>
+          </div>
+          <div>
+            <p className="text-gray-500 text-xs sm:text-sm">사용 완료</p>
+            <p className="text-lg font-medium text-gray-400">₩{(balanceData?.usedBalance || 0).toLocaleString()}</p>
+          </div>
+        </div>
+      </div>
+
+      {/* 탭 */}
+      <div className="flex gap-2 border-b border-dark-600">
+        <button
+          onClick={() => setActiveTab('credit')}
+          className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+            activeTab === 'credit'
+              ? 'border-ruby-500 text-ruby-400'
+              : 'border-transparent text-gray-400 hover:text-white'
+          }`}
+        >
+          적립 내역 ({creditLedger.length})
+        </button>
+        <button
+          onClick={() => setActiveTab('debit')}
+          className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+            activeTab === 'debit'
+              ? 'border-ruby-500 text-ruby-400'
+              : 'border-transparent text-gray-400 hover:text-white'
+          }`}
+        >
+          차감 내역 ({debitLedger.length})
+        </button>
+        <button
+          onClick={() => setActiveTab('payments')}
+          className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+            activeTab === 'payments'
+              ? 'border-ruby-500 text-ruby-400'
+              : 'border-transparent text-gray-400 hover:text-white'
+          }`}
+        >
+          결제 내역 ({payments.length})
+        </button>
+      </div>
+
+      {/* 적립 내역 */}
+      {activeTab === 'credit' && (
+        <div className="space-y-3">
+          {creditLedger.length === 0 ? (
+            <div className="card p-6 text-center text-gray-400">
+              적립 내역이 없습니다.
+            </div>
+          ) : (
+            creditLedger.map((entry) => (
+              <div key={entry.id} className="card p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1 flex-wrap">
+                      <span className="px-2 py-0.5 text-xs rounded bg-green-600/20 text-green-400">적립</span>
+                      {entry.reason === 'SEASON_SETTLEMENT' && (
+                        <>
+                          {entry.isWinnerRoundParticipant ? (
+                            <span className="px-2 py-0.5 text-xs rounded bg-ruby-600/20 text-ruby-400">당첨 정산</span>
+                          ) : (
+                            <span className="px-2 py-0.5 text-xs rounded bg-blue-600/20 text-blue-400">미당첨 적립</span>
+                          )}
+                        </>
+                      )}
+                    </div>
+                    <p className="font-medium text-sm sm:text-base">
+                      {entry.reason === 'SEASON_SETTLEMENT' ? '시즌 정산 적립' : entry.description || '교환금 적립'}
+                    </p>
+                    {entry.seasonId && (
+                      <p className="text-xs sm:text-sm text-gray-400 mt-1">
+                        시즌: {entry.seasonId}
+                        {entry.winningRoundId && ` / 당첨 라운드: ${entry.winningRoundId}`}
+                      </p>
+                    )}
+                    {entry.totalPaidInSeason && (
+                      <p className="text-xs text-gray-500 mt-1">
+                        누적 참여비: ₩{entry.totalPaidInSeason.toLocaleString()}
+                        {entry.winningValue > 0 && ` / 당첨가액: ₩${entry.winningValue.toLocaleString()}`}
+                      </p>
+                    )}
+                    <p className="text-xs text-gray-500 mt-1">
+                      {new Date(entry.createdAt).toLocaleString('ko-KR')}
+                    </p>
+                  </div>
+                  <div className="text-right flex-shrink-0">
+                    <p className="text-lg font-bold text-green-400">+₩{entry.amount?.toLocaleString()}</p>
+                    <p className="text-xs text-gray-500">잔액: ₩{entry.balanceAfter?.toLocaleString()}</p>
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      )}
+
+      {/* 차감 내역 */}
+      {activeTab === 'debit' && (
+        <div className="space-y-3">
+          {debitLedger.length === 0 ? (
+            <div className="card p-6 text-center text-gray-400">
+              차감 내역이 없습니다.
+            </div>
+          ) : (
+            debitLedger.map((entry) => (
+              <div key={entry.id} className="card p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="px-2 py-0.5 text-xs rounded bg-red-600/20 text-red-400">차감</span>
+                    </div>
+                    <p className="font-medium text-sm sm:text-base">
+                      {entry.description || '교환 신청 승인'}
+                    </p>
+                    {entry.relatedId && (
+                      <p className="text-xs text-gray-500 mt-1">신청번호: {entry.relatedId}</p>
+                    )}
+                    <p className="text-xs text-gray-500 mt-1">
+                      {new Date(entry.createdAt).toLocaleString('ko-KR')}
+                    </p>
+                  </div>
+                  <div className="text-right flex-shrink-0">
+                    <p className="text-lg font-bold text-red-400">-₩{entry.amount?.toLocaleString()}</p>
+                    <p className="text-xs text-gray-500">잔액: ₩{entry.balanceAfter?.toLocaleString()}</p>
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      )}
+
+      {/* 결제 내역 */}
+      {activeTab === 'payments' && (
+        <div className="space-y-3">
+          {payments.length === 0 ? (
+            <div className="card p-6 text-center text-gray-400">
+              결제 내역이 없습니다.
+            </div>
+          ) : (
+            payments.map((payment) => (
+              <div key={payment.id} className="card p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className={`px-2 py-0.5 text-xs rounded ${
+                        payment.status === 'success'
+                          ? 'bg-green-600/20 text-green-400'
+                          : 'bg-red-600/20 text-red-400'
+                      }`}>
+                        {payment.status === 'success' ? '결제완료' : '취소'}
+                      </span>
+                    </div>
+                    <p className="font-medium text-sm sm:text-base">
+                      {payment.roundTitle || '라운드 참여'}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      시즌: {payment.seasonId} / 라운드: {payment.roundId}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {new Date(payment.paidAt).toLocaleString('ko-KR')}
+                    </p>
+                  </div>
+                  <div className="text-right flex-shrink-0">
+                    <p className="text-lg font-bold text-ruby-400">₩{payment.amount?.toLocaleString()}</p>
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      )}
+
+      {/* 안내 */}
+      <div className="card bg-dark-800/50 border-yellow-900/30 p-4">
+        <h4 className="font-medium text-yellow-500 flex items-center gap-2 mb-2 text-sm">
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          교환금 안내
+        </h4>
+        <ul className="text-xs text-gray-400 space-y-1">
+          <li>- 교환금은 시즌 정산 시 자동으로 적립됩니다.</li>
+          <li>- 교환금으로 악세사리 제작을 신청할 수 있습니다.</li>
+          <li>- 교환금 차감은 대표 승인 시 이루어집니다.</li>
+        </ul>
+      </div>
     </div>
   );
 }
@@ -536,6 +806,8 @@ export default function MyPage() {
         return <ParticipationHistory />;
       case 'payment-history':
         return <PaymentHistory />;
+      case 'balance-overview':
+        return <BalanceOverview />;
       case 'exchange-apply':
         return <ExchangeApply onNavigate={handleNavigate} />;
       case 'exchange-history':

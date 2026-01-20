@@ -33,6 +33,15 @@ import SeasonSettlement from './pages/admin/SeasonSettlement';
 import SeasonManagement from './pages/admin/SeasonManagement';
 import RoundManagement from './pages/admin/RoundManagement';
 import PaymentManagement from './pages/admin/PaymentManagement';
+import DeliveryManagement from './pages/admin/DeliveryManagement';
+import AdultVerification from './pages/admin/AdultVerification';
+import RoundResults from './pages/admin/RoundResults';
+import LedgerManagement from './pages/admin/LedgerManagement';
+import RewardManagement from './pages/admin/RewardManagement';
+import CouponManagement from './pages/admin/CouponManagement';
+import AuditLog from './pages/admin/AuditLog';
+import SystemSettings from './pages/admin/SystemSettings';
+import ConsultationManagement from './pages/admin/ConsultationManagement';
 
 function App() {
   return (
@@ -45,13 +54,22 @@ function App() {
         <Route path="/admin/login" element={<AdminLogin />} />
         <Route path="/admin" element={<AdminLayout />}>
           <Route index element={<AdminDashboard />} />
+          <Route path="users" element={<UserManagement />} />
+          <Route path="adult-verification" element={<AdultVerification />} />
+          <Route path="payments" element={<PaymentManagement />} />
           <Route path="seasons" element={<SeasonManagement />} />
           <Route path="rounds" element={<RoundManagement />} />
-          <Route path="payments" element={<PaymentManagement />} />
-          <Route path="users" element={<UserManagement />} />
-          <Route path="settlement" element={<SeasonSettlement />} />
+          <Route path="round-results" element={<RoundResults />} />
+          <Route path="ledger" element={<LedgerManagement />} />
           <Route path="exchange" element={<ExchangeManagement />} />
           <Route path="exchange/:id" element={<ExchangeDetail />} />
+          <Route path="delivery" element={<DeliveryManagement />} />
+          <Route path="rewards" element={<RewardManagement />} />
+          <Route path="coupons" element={<CouponManagement />} />
+          <Route path="consultation" element={<ConsultationManagement />} />
+          <Route path="settlement" element={<SeasonSettlement />} />
+          <Route path="audit-log" element={<AuditLog />} />
+          <Route path="settings" element={<SystemSettings />} />
         </Route>
 
         {/* Customer Routes */}
