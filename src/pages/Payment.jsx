@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 
-// 토스페이먼츠 클라이언트 키 (테스트용)
-const TOSS_CLIENT_KEY = 'test_ck_D5GePWvyJnrK0W0k6q8gLzN97Eoq';
+// 토스페이먼츠 클라이언트 키
+const TOSS_CLIENT_KEY = 'live_gck_E92LAa5PVbPzPdypLX9B87YmpXyJ';
 
 const CURRENT_SEASON_ID = 'SEASON-1';
 
@@ -57,8 +57,8 @@ export default function Payment() {
         orderName: `${round.number} - ${round.title} 참여비`,
         customerName: userName,
         customerEmail: userEmail,
-        successUrl: `${window.location.origin}/RUBY-ROUND/payment/success`,
-        failUrl: `${window.location.origin}/RUBY-ROUND/payment/fail`,
+        successUrl: `${window.location.origin}/payment/success`,
+        failUrl: `${window.location.origin}/payment/fail`,
       });
     } catch (error) {
       if (error.code === 'USER_CANCEL') {

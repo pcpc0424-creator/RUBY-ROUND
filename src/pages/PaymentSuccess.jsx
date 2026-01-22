@@ -46,16 +46,30 @@ export default function PaymentSuccess() {
           throw new Error('결제 금액이 일치하지 않습니다.');
         }
 
+        // 토스페이먼츠 결제 승인 API 호출
+        const confirmResponse = await fetch('/api/payments/confirm', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            paymentKey,
+            orderId,
+            amount: parseInt(amount),
+          }),
+        });
+
+        const confirmResult = await confirmResponse.json();
+
+        if (!confirmResult.success) {
+          throw new Error(confirmResult.error || '결제 승인에 실패했습니다.');
+        }
+
         // 사용자 정보
         const userEmail = localStorage.getItem('userEmail') || 'test@ruby.com';
         const userName = localStorage.getItem('userName') || '사용자';
 
-        // 결제 정보 저장 (실제로는 서버에서 토스페이먼츠 결제 승인 API를 호출해야 함)
-        // 서버에서 다음 API를 호출:
-        // POST https://api.tosspayments.com/v1/payments/confirm
-        // Body: { paymentKey, orderId, amount }
-        // Headers: Authorization: Basic {base64(secretKey:)}
-
+        // 결제 정보 저장
         await createRoundPayment({
           userEmail,
           userName,

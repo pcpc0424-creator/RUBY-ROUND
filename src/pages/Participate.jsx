@@ -1,16 +1,53 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 
+// 토스페이먼츠 클라이언트 키
+const TOSS_CLIENT_KEY = 'live_gck_E92LAa5PVbPzPdypLX9B87YmpXyJ';
+
 export default function Participate() {
   const [selectedRound, setSelectedRound] = useState(null);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   const rounds = [
-    { id: 1, name: 'Round 1', price: 0, status: 'completed', description: '무료 체험 라운드' },
-    { id: 2, name: 'Round 2', price: 50000, status: 'active', description: '시즌 본격 시작' },
-    { id: 3, name: 'Round 3', price: 50000, status: 'upcoming', description: '진행 예정' },
-    { id: 4, name: 'Round 4', price: 50000, status: 'upcoming', description: '진행 예정' },
-    { id: 5, name: 'Round 5', price: 50000, status: 'upcoming', description: '진행 예정' },
+    { id: 'R1', name: 'Round 1', price: 0, status: 'completed', description: '무료 체험 라운드' },
+    { id: 'R2', name: 'Round 2', price: 500000, status: 'active', description: '탐사 라운드' },
+    { id: 'R3', name: 'Round 3', price: 1000000, status: 'upcoming', description: '발굴 라운드' },
+    { id: 'R4', name: 'Round 4', price: 1800000, status: 'upcoming', description: 'Deep Cargo' },
+    { id: 'R5', name: 'Round 5', price: 2500000, status: 'upcoming', description: 'Core Mining' },
   ];
+
+  const handlePayment = async () => {
+    const round = rounds.find(r => r.id === selectedRound);
+    if (!round || round.price === 0) return;
+
+    setIsProcessing(true);
+
+    try {
+      const tossPayments = window.TossPayments(TOSS_CLIENT_KEY);
+      const userName = localStorage.getItem('userName') || '사용자';
+      const userEmail = localStorage.getItem('userEmail') || 'guest@rubyround.net';
+      const orderId = `RUBY-${round.id}-${Date.now()}`;
+
+      await tossPayments.requestPayment('카드', {
+        amount: round.price,
+        orderId: orderId,
+        orderName: `${round.name} - ${round.description} 참여비`,
+        customerName: userName,
+        customerEmail: userEmail,
+        successUrl: `${window.location.origin}/payment/success`,
+        failUrl: `${window.location.origin}/payment/fail`,
+      });
+    } catch (error) {
+      if (error.code === 'USER_CANCEL') {
+        alert('결제가 취소되었습니다.');
+      } else {
+        console.error('결제 오류:', error);
+        alert('결제 처리 중 오류가 발생했습니다.');
+      }
+    } finally {
+      setIsProcessing(false);
+    }
+  };
 
   const getStatusStyle = (status) => {
     switch (status) {
@@ -94,7 +131,7 @@ export default function Participate() {
                   <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-lg flex items-center justify-center font-bold ${
                     round.status === 'active' ? 'bg-ruby-600 text-white' : 'bg-dark-700 text-gray-500'
                   }`}>
-                    {round.id}
+                    {round.id.replace('R', '')}
                   </div>
                   <div>
                     <h3 className="font-bold text-sm sm:text-base">{round.name}</h3>
@@ -116,31 +153,38 @@ export default function Participate() {
 
         {/* Payment Section */}
         <div className="card bg-gradient-to-r from-ruby-950/50 to-dark-800 border-ruby-900/50 p-4 sm:p-6 animate-fade-in-up opacity-0" style={{ animationDelay: '0.9s', animationFillMode: 'forwards' }}>
-          {selectedRound ? (
-            <>
-              <h3 className="text-lg sm:text-xl font-bold mb-4">결제 정보</h3>
-              <div className="space-y-3 mb-6">
-                <div className="flex justify-between text-sm sm:text-base">
-                  <span className="text-gray-400">선택 라운드</span>
-                  <span>Round {selectedRound}</span>
+          {selectedRound ? (() => {
+            const round = rounds.find(r => r.id === selectedRound);
+            return (
+              <>
+                <h3 className="text-lg sm:text-xl font-bold mb-4">결제 정보</h3>
+                <div className="space-y-3 mb-6">
+                  <div className="flex justify-between text-sm sm:text-base">
+                    <span className="text-gray-400">선택 라운드</span>
+                    <span>{round.name} - {round.description}</span>
+                  </div>
+                  <div className="flex justify-between text-sm sm:text-base">
+                    <span className="text-gray-400">참여비</span>
+                    <span>{round.price.toLocaleString()}원</span>
+                  </div>
+                  <div className="border-t border-dark-600 pt-3 flex justify-between font-bold">
+                    <span>총 결제금액</span>
+                    <span className="text-ruby-400">{round.price.toLocaleString()}원</span>
+                  </div>
                 </div>
-                <div className="flex justify-between text-sm sm:text-base">
-                  <span className="text-gray-400">참여비</span>
-                  <span>50,000원</span>
-                </div>
-                <div className="border-t border-dark-600 pt-3 flex justify-between font-bold">
-                  <span>총 결제금액</span>
-                  <span className="text-ruby-400">50,000원</span>
-                </div>
-              </div>
-              <button className="btn-primary w-full py-3 sm:py-4 text-sm sm:text-base">
-                결제하기
-              </button>
-              <p className="text-xs text-gray-500 text-center mt-3">
-                결제 시 이용약관 및 개인정보처리방침에 동의하게 됩니다.
-              </p>
-            </>
-          ) : (
+                <button
+                  onClick={handlePayment}
+                  disabled={isProcessing}
+                  className="btn-primary w-full py-3 sm:py-4 text-sm sm:text-base disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isProcessing ? '결제 처리 중...' : '결제하기'}
+                </button>
+                <p className="text-xs text-gray-500 text-center mt-3">
+                  결제 시 이용약관 및 개인정보처리방침에 동의하게 됩니다.
+                </p>
+              </>
+            );
+          })() : (
             <div className="text-center py-4">
               <p className="text-gray-400 mb-4">참여할 라운드를 선택해주세요.</p>
               <p className="text-xs text-gray-500">

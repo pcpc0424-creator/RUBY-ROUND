@@ -22,7 +22,7 @@ export default function Footer() {
             <Link to="/" className="inline-flex items-center mb-4 group">
               <div className="relative">
                 <img
-                  src="/RUBY-ROUND/logo.png"
+                  src="/logo.png"
                   alt="Ruby Round"
                   className="h-8 transition-all duration-500 group-hover:scale-110 group-hover:brightness-125"
                 />

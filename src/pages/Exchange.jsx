@@ -326,7 +326,7 @@ export default function Exchange() {
             </p>
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <a
-                href="mailto:support@rubyround.com"
+                href="mailto:support@rubyround.net"
                 className="btn-secondary inline-flex items-center justify-center gap-2 text-sm"
               >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">

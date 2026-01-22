@@ -67,7 +67,7 @@ export default function Contact() {
                 </div>
                 <h3 className="font-bold">이메일 문의</h3>
               </div>
-              <p className="text-gray-400 text-sm">support@rubyround.com</p>
+              <p className="text-gray-400 text-sm">support@rubyround.net</p>
               <p className="text-gray-500 text-xs mt-1">24시간 접수 가능</p>
             </div>
 

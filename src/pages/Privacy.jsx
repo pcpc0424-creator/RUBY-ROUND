@@ -280,7 +280,7 @@ export default function Privacy() {
                 <div className="bg-dark-700/30 rounded-lg p-4">
                   <h3 className="text-white font-medium mb-2">7.1 권리 행사 방법(비대면 고객센터)</h3>
                   <ul className="list-disc list-inside space-y-1 text-gray-400 text-sm">
-                    <li><span className="text-white">접수 채널:</span> 1:1 문의 / 이메일(cs@rubyround.co.kr) / 카카오톡 채널</li>
+                    <li><span className="text-white">접수 채널:</span> 1:1 문의 / 이메일(cs@rubyround.net) / 카카오톡 채널</li>
                     <li>회사는 본인 확인 후 지체 없이 조치합니다.</li>
                     <li>단, 법령상 제한 또는 타인의 권리 침해 우려가 있는 경우 일부 제한될 수 있습니다.</li>
                   </ul>
@@ -382,7 +382,7 @@ export default function Privacy() {
                 <ul className="space-y-2 text-gray-400">
                   <li><span className="text-white">개인정보 보호책임자(CPO):</span> 임시윤</li>
                   <li><span className="text-white">소속/직위:</span> 대표이사</li>
-                  <li><span className="text-white">이메일:</span> cs@rubyround.co.kr</li>
+                  <li><span className="text-white">이메일:</span> cs@rubyround.net</li>
                   <li><span className="text-white">고충처리 부서:</span> 고객센터</li>
                   <li><span className="text-white">문의 채널:</span> 1:1 문의 / 이메일 / 카카오톡 채널</li>
                   <li><span className="text-white">운영시간:</span> 평일 11:00~18:00 (공휴일 제외)</li>
@@ -468,7 +468,7 @@ export default function Privacy() {
                 <h3 className="text-white font-medium mb-3">개인정보 보호책임자 정보</h3>
                 <ul className="space-y-1 text-gray-400 text-sm">
                   <li><span className="text-white">개인정보보호책임자:</span> 임시윤 / 대표이사</li>
-                  <li><span className="text-white">이메일:</span> cs@rubyround.co.kr</li>
+                  <li><span className="text-white">이메일:</span> cs@rubyround.net</li>
                   <li><span className="text-white">문의:</span> 카카오톡 채널 / 1:1 문의</li>
                 </ul>
               </div>

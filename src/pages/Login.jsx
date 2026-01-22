@@ -1,7 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { registerUser, createAdultVerificationRequest, checkAdultVerification } from '../api/exchangeApi';
 import { ADULT_VERIFICATION_METHODS } from '../constants/exchangeConstants';
+
+// 카카오 설정
+const KAKAO_JS_KEY = '8bfa8dcca7350d0d0b9b866bcaea6f89';
+const KAKAO_REST_API_KEY = '3dd43ca76776af78ace98fbea2cd032c';
 
 // 테스트 계정
 const TEST_ACCOUNT = {
@@ -16,6 +20,7 @@ export default function Login() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
+  const [kakaoInitialized, setKakaoInitialized] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -26,6 +31,28 @@ export default function Login() {
     requestAdultVerification: false,
     birthDate: '',
   });
+
+  // 카카오 SDK 초기화
+  useEffect(() => {
+    if (window.Kakao && !window.Kakao.isInitialized()) {
+      window.Kakao.init(KAKAO_JS_KEY);
+      setKakaoInitialized(true);
+    } else if (window.Kakao?.isInitialized()) {
+      setKakaoInitialized(true);
+    }
+  }, []);
+
+  // 카카오 로그인 핸들러
+  const handleKakaoLogin = () => {
+    if (!window.Kakao?.isInitialized()) {
+      window.Kakao?.init(KAKAO_JS_KEY);
+    }
+
+    // 카카오 SDK 2.x 버전 - authorize 사용
+    window.Kakao.Auth.authorize({
+      redirectUri: window.location.origin + '/oauth',
+    });
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -155,7 +182,7 @@ export default function Login() {
         <Link to="/" className="flex items-center justify-center mb-6 sm:mb-8 animate-fade-in-down opacity-0 group" style={{ animationDelay: '0.1s', animationFillMode: 'forwards' }}>
           <div className="relative">
             <img
-              src="/RUBY-ROUND/logo.png"
+              src="/logo.png"
               alt="Ruby Round"
               className="h-10 sm:h-12 transition-all duration-500 group-hover:scale-110 group-hover:brightness-125"
             />
@@ -388,7 +415,11 @@ export default function Login() {
               </svg>
               <span className="text-xs sm:text-sm text-gray-300">Google</span>
             </button>
-            <button className="flex items-center justify-center gap-2 px-3 py-2.5 sm:px-4 sm:py-3 bg-[#FEE500] rounded-lg hover:bg-[#FDD800] transition-all duration-300">
+            <button
+              type="button"
+              onClick={handleKakaoLogin}
+              className="flex items-center justify-center gap-2 px-3 py-2.5 sm:px-4 sm:py-3 bg-[#FEE500] rounded-lg hover:bg-[#FDD800] transition-all duration-300"
+            >
               <svg className="w-4 h-4 sm:w-5 sm:h-5" viewBox="0 0 24 24">
                 <path fill="#000" d="M12,3c5.8,0,10.5,3.7,10.5,8.3c0,4.6-4.7,8.3-10.5,8.3c-1,0-2-0.1-2.9-0.4l-4.5,3l0.9-4.4C3.2,16,2,13.8,2,11.3C2,6.7,6.7,3,12,3z"/>
               </svg>

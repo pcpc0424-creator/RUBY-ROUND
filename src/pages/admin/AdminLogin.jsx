@@ -74,7 +74,7 @@ export default function AdminLogin() {
                 className="w-full px-4 py-3 bg-dark-700 border border-dark-600 rounded-lg
                   text-white placeholder-gray-500
                   focus:outline-none focus:border-ruby-500 transition-colors"
-                placeholder="admin@rubyround.co.kr"
+                placeholder="admin@rubyround.net"
                 required
               />
             </div>
@@ -120,11 +120,11 @@ export default function AdminLogin() {
             <div className="space-y-2 text-xs text-gray-400">
               <div className="flex justify-between">
                 <span>대표 (승인 권한)</span>
-                <span className="font-mono">admin@rubyround.co.kr / admin1234</span>
+                <span className="font-mono">admin@rubyround.net / admin1234</span>
               </div>
               <div className="flex justify-between">
                 <span>CS 매니저</span>
-                <span className="font-mono">cs@rubyround.co.kr / cs1234</span>
+                <span className="font-mono">cs@rubyround.net / cs1234</span>
               </div>
             </div>
           </div>

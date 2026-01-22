@@ -130,7 +130,7 @@ export default function YouthPolicy() {
                 <ul className="space-y-2 text-gray-400">
                   <li><span className="text-white">청소년보호책임자:</span> 임시윤</li>
                   <li><span className="text-white">직위/부서:</span> 대표이사</li>
-                  <li><span className="text-white">이메일:</span> cs@rubyround.co.kr</li>
+                  <li><span className="text-white">이메일:</span> cs@rubyround.net</li>
                   <li><span className="text-white">문의 접수 채널:</span> 카카오톡 채널 / 1:1 문의 / 이메일</li>
                   <li><span className="text-white">운영시간:</span> 평일 11:00~18:00 (주말·공휴일 휴무)</li>
                 </ul>
@@ -252,7 +252,7 @@ export default function YouthPolicy() {
 
               <div className="bg-dark-700/50 rounded-lg p-4 mb-4">
                 <p className="text-white font-medium mb-2">신고 채널</p>
-                <p className="text-gray-400 text-sm">카카오톡 채널 / 1:1 문의 / 이메일 cs@rubyround.co.kr</p>
+                <p className="text-gray-400 text-sm">카카오톡 채널 / 1:1 문의 / 이메일 cs@rubyround.net</p>
                 <p className="text-white font-medium mt-3 mb-2">신고 시 기재 권장사항</p>
                 <p className="text-gray-400 text-sm">문제 콘텐츠 위치(URL/화면 캡처), 내용 설명, 발생 시각, 계정 정보(가능한 경우)</p>
               </div>
@@ -327,7 +327,7 @@ export default function YouthPolicy() {
                 <h3 className="text-white font-medium mb-3">청소년보호 책임자 정보</h3>
                 <ul className="space-y-1 text-gray-400 text-sm">
                   <li><span className="text-white">청소년보호책임자:</span> 임시윤 / 대표이사</li>
-                  <li><span className="text-white">이메일:</span> cs@rubyround.co.kr</li>
+                  <li><span className="text-white">이메일:</span> cs@rubyround.net</li>
                   <li><span className="text-white">신고/문의:</span> 카카오톡 채널 / 1:1 문의</li>
                 </ul>
               </div>

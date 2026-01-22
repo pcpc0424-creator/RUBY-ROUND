@@ -406,14 +406,14 @@ export const adminCancelApplication = async (applicationId, adminName, reason) =
 export const adminLogin = async (email, password) => {
   // 샘플 관리자 계정
   const adminUsers = {
-    'admin@rubyround.co.kr': {
-      email: 'admin@rubyround.co.kr',
+    'admin@rubyround.net': {
+      email: 'admin@rubyround.net',
       password: 'admin1234',
       name: '임시윤',
       role: 'ceo',
     },
-    'cs@rubyround.co.kr': {
-      email: 'cs@rubyround.co.kr',
+    'cs@rubyround.net': {
+      email: 'cs@rubyround.net',
       password: 'cs1234',
       name: 'CS관리자',
       role: 'cs_manager',

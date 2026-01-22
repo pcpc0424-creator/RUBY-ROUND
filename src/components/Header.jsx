@@ -176,7 +176,7 @@ export default function Header() {
           >
             <div className="relative">
               <img
-                src="/RUBY-ROUND/logo.png"
+                src="/logo.png"
                 alt="Ruby Round"
                 className="h-8 sm:h-10 transition-all duration-500 group-hover:scale-110 group-hover:brightness-125"
               />

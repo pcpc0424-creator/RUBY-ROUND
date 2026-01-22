@@ -148,7 +148,7 @@ export default function FAQ() {
             </p>
             <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center">
               <a
-                href="mailto:support@rubyround.com"
+                href="mailto:support@rubyround.net"
                 className="btn-secondary inline-flex items-center justify-center gap-2 text-sm sm:text-base hover-glow"
               >
                 <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">

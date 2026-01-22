@@ -21,6 +21,7 @@ import Privacy from './pages/Privacy';
 import YouthPolicy from './pages/YouthPolicy';
 import PaymentSuccess from './pages/PaymentSuccess';
 import PaymentFail from './pages/PaymentFail';
+import KakaoCallback from './pages/KakaoCallback';
 
 // Admin pages
 import AdminLayout from './components/admin/AdminLayout';
@@ -45,10 +46,11 @@ import ConsultationManagement from './pages/admin/ConsultationManagement';
 
 function App() {
   return (
-    <Router basename="/RUBY-ROUND">
+    <Router>
       <Routes>
         {/* Customer Login */}
         <Route path="/login" element={<Login />} />
+        <Route path="/oauth" element={<KakaoCallback />} />
 
         {/* Admin Routes */}
         <Route path="/admin/login" element={<AdminLogin />} />
