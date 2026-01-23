@@ -591,6 +591,68 @@ export const registerUser = async (userData) => {
   return { success: true, data: newUser };
 };
 
+// 사용자 로그인
+export const loginUser = async (email, password) => {
+  const users = getFromStorage(STORAGE_KEYS.USERS, []);
+  const user = users.find(u => u.email === email && u.password === password);
+
+  if (!user) {
+    return { success: false, error: '이메일 또는 비밀번호가 일치하지 않습니다.' };
+  }
+
+  if (user.status !== 'active') {
+    return { success: false, error: '비활성화된 계정입니다. 관리자에게 문의하세요.' };
+  }
+
+  return { success: true, data: user };
+};
+
+// 비밀번호 변경
+export const changePassword = async (email, currentPassword, newPassword) => {
+  const users = getFromStorage(STORAGE_KEYS.USERS, []);
+  const userIndex = users.findIndex(u => u.email === email);
+
+  if (userIndex === -1) {
+    return { success: false, error: '사용자를 찾을 수 없습니다.' };
+  }
+
+  if (users[userIndex].password !== currentPassword) {
+    return { success: false, error: '현재 비밀번호가 일치하지 않습니다.' };
+  }
+
+  users[userIndex].password = newPassword;
+  users[userIndex].updatedAt = new Date().toISOString();
+  saveToStorage(STORAGE_KEYS.USERS, users);
+
+  return { success: true };
+};
+
+// 사용자 삭제 (회원탈퇴)
+export const deleteUser = async (email) => {
+  const users = getFromStorage(STORAGE_KEYS.USERS, []);
+  const userIndex = users.findIndex(u => u.email === email);
+
+  if (userIndex === -1) {
+    return { success: false, error: '사용자를 찾을 수 없습니다.' };
+  }
+
+  // 사용자 삭제
+  users.splice(userIndex, 1);
+  saveToStorage(STORAGE_KEYS.USERS, users);
+
+  // 교환금 잔액 삭제
+  const balances = getFromStorage(STORAGE_KEYS.USER_EXCHANGE_BALANCE, {});
+  delete balances[email];
+  saveToStorage(STORAGE_KEYS.USER_EXCHANGE_BALANCE, balances);
+
+  // 성인인증 기록 삭제
+  const verifications = getFromStorage(STORAGE_KEYS.ADULT_VERIFICATIONS, []);
+  const filteredVerifications = verifications.filter(v => v.userEmail !== email);
+  saveToStorage(STORAGE_KEYS.ADULT_VERIFICATIONS, filteredVerifications);
+
+  return { success: true };
+};
+
 // 사용자 정보 수정
 export const updateUser = async (userId, updateData) => {
   const users = getFromStorage(STORAGE_KEYS.USERS, []);
@@ -1074,6 +1136,21 @@ export const rejectAdultVerification = async (verificationId, adminName, reason 
   saveToStorage(STORAGE_KEYS.ADULT_VERIFICATIONS, verifications);
 
   return { success: true, data: verification };
+};
+
+// 성인 인증 요청 삭제
+export const deleteAdultVerification = async (verificationId) => {
+  const verifications = getFromStorage(STORAGE_KEYS.ADULT_VERIFICATIONS, []);
+  const index = verifications.findIndex(v => v.id === verificationId);
+
+  if (index === -1) {
+    return { success: false, error: '인증 요청을 찾을 수 없습니다.' };
+  }
+
+  verifications.splice(index, 1);
+  saveToStorage(STORAGE_KEYS.ADULT_VERIFICATIONS, verifications);
+
+  return { success: true };
 };
 
 // 관리자 수동 성인 인증 (대표만 가능)

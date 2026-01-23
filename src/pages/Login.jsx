@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { registerUser, createAdultVerificationRequest, checkAdultVerification } from '../api/exchangeApi';
+import { registerUser, loginUser, createAdultVerificationRequest, checkAdultVerification } from '../api/exchangeApi';
 import { ADULT_VERIFICATION_METHODS } from '../constants/exchangeConstants';
 
 // 카카오 설정
@@ -63,21 +63,24 @@ export default function Login() {
     try {
       if (isLogin) {
         // 로그인 처리
-        if (formData.email === TEST_ACCOUNT.email && formData.password === TEST_ACCOUNT.password) {
+        const loginResult = await loginUser(formData.email, formData.password);
+
+        if (loginResult.success) {
           // 로그인 성공
+          const user = loginResult.data;
           localStorage.setItem('isLoggedIn', 'true');
-          localStorage.setItem('userName', TEST_ACCOUNT.name);
-          localStorage.setItem('userEmail', TEST_ACCOUNT.email);
+          localStorage.setItem('userName', user.name);
+          localStorage.setItem('userEmail', user.email);
 
           // 성인 인증 상태 확인
-          const verificationResult = await checkAdultVerification(TEST_ACCOUNT.email);
+          const verificationResult = await checkAdultVerification(user.email);
           if (verificationResult.success) {
             localStorage.setItem('adultVerified', verificationResult.data.isVerified ? 'true' : 'false');
           }
 
           navigate('/');
         } else {
-          setError('이메일 또는 비밀번호가 일치하지 않습니다.');
+          setError(loginResult.error);
         }
       } else {
         // 회원가입 처리

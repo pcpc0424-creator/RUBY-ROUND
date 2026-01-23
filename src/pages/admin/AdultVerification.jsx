@@ -5,6 +5,7 @@ import {
   getAdultVerificationStatistics,
   approveAdultVerification,
   rejectAdultVerification,
+  deleteAdultVerification,
   manualAdultVerification,
   revokeAdultVerification,
   getUsers,
@@ -100,6 +101,21 @@ export default function AdultVerification() {
       loadData();
     } else {
       alert(result.error || '거부 처리에 실패했습니다.');
+    }
+    setProcessing(false);
+  };
+
+  // 요청 삭제
+  const handleDelete = async (request) => {
+    if (!window.confirm(`${request.userName}님의 인증 요청을 삭제하시겠습니까?`)) return;
+
+    setProcessing(true);
+    const result = await deleteAdultVerification(request.id);
+    if (result.success) {
+      alert('인증 요청이 삭제되었습니다.');
+      loadData();
+    } else {
+      alert(result.error || '삭제에 실패했습니다.');
     }
     setProcessing(false);
   };
@@ -360,36 +376,46 @@ export default function AdultVerification() {
                             </span>
                           </td>
                           <td className="px-4 py-4 text-right">
-                            {request.status === 'pending' && (
-                              <div className="flex items-center justify-end gap-2">
-                                {canApprove && (
+                            <div className="flex items-center justify-end gap-2">
+                              {request.status === 'pending' && (
+                                <>
+                                  {canApprove && (
+                                    <button
+                                      onClick={() => handleApprove(request)}
+                                      disabled={processing}
+                                      className="px-3 py-1.5 bg-green-600/20 hover:bg-green-600/30 text-green-400 text-sm rounded transition-colors disabled:opacity-50"
+                                    >
+                                      승인
+                                    </button>
+                                  )}
                                   <button
-                                    onClick={() => handleApprove(request)}
+                                    onClick={() => setRejectModal({ open: true, request })}
                                     disabled={processing}
-                                    className="px-3 py-1.5 bg-green-600/20 hover:bg-green-600/30 text-green-400 text-sm rounded transition-colors disabled:opacity-50"
+                                    className="px-3 py-1.5 bg-red-600/20 hover:bg-red-600/30 text-red-400 text-sm rounded transition-colors disabled:opacity-50"
                                   >
-                                    승인
+                                    거부
                                   </button>
-                                )}
-                                <button
-                                  onClick={() => setRejectModal({ open: true, request })}
-                                  disabled={processing}
-                                  className="px-3 py-1.5 bg-red-600/20 hover:bg-red-600/30 text-red-400 text-sm rounded transition-colors disabled:opacity-50"
-                                >
-                                  거부
-                                </button>
-                              </div>
-                            )}
-                            {request.status === 'approved' && (
-                              <span className="text-green-400 text-sm">
-                                {request.approvedBy && `${request.approvedBy} 승인`}
-                              </span>
-                            )}
-                            {request.status === 'rejected' && (
-                              <span className="text-red-400 text-sm">
-                                {request.rejectionReason && `사유: ${request.rejectionReason}`}
-                              </span>
-                            )}
+                                </>
+                              )}
+                              {request.status === 'approved' && (
+                                <span className="text-green-400 text-sm">
+                                  {request.approvedBy && `${request.approvedBy} 승인`}
+                                </span>
+                              )}
+                              {request.status === 'rejected' && (
+                                <span className="text-red-400 text-sm mr-2">
+                                  {request.rejectionReason && `사유: ${request.rejectionReason}`}
+                                </span>
+                              )}
+                              <button
+                                onClick={() => handleDelete(request)}
+                                disabled={processing}
+                                className="px-3 py-1.5 bg-gray-600/20 hover:bg-gray-600/30 text-gray-400 text-sm rounded transition-colors disabled:opacity-50"
+                                title="삭제"
+                              >
+                                삭제
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       );

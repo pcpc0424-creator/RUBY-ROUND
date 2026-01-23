@@ -4,6 +4,7 @@ import ExchangeApplyForm from '../components/exchange/ExchangeApplyForm';
 import ExchangeComplete from '../components/exchange/ExchangeComplete';
 import ExchangeHistoryList from '../components/exchange/ExchangeHistoryList';
 import { getUserLedger, getPaymentsByUser } from '../api/seasonApi';
+import { deleteUser, changePassword, updateUser, getUserDetail } from '../api/exchangeApi';
 
 // 샘플 데이터
 const userData = {
@@ -119,139 +120,213 @@ const menuItems = [
 
 // 콘텐츠 컴포넌트들
 function ParticipationHistory() {
+  const [participations, setParticipations] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadParticipations = async () => {
+      const userEmail = localStorage.getItem('userEmail');
+      if (userEmail) {
+        const result = await getUserLedger(userEmail);
+        if (result.success && result.data) {
+          // 참여 내역만 필터링
+          const participationItems = result.data.filter(item =>
+            item.type === 'participation' || item.description?.includes('참여')
+          );
+          setParticipations(participationItems);
+        }
+      }
+      setLoading(false);
+    };
+    loadParticipations();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="space-y-4">
+        <h3 className="text-lg sm:text-xl font-bold">라운드 참여내역</h3>
+        <div className="card p-8 text-center text-gray-400">로딩 중...</div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
       <h3 className="text-lg sm:text-xl font-bold">라운드 참여내역</h3>
 
-      {/* 모바일 카드 레이아웃 */}
-      <div className="sm:hidden space-y-3">
-        {participationData.map((item) => (
-          <div key={item.id} className="card p-4">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-medium">{item.season}</span>
-                <span className="text-ruby-400 font-bold">{item.round}</span>
+      {participations.length === 0 ? (
+        <div className="card p-8 text-center">
+          <div className="text-gray-400 mb-2">참여내역이 없습니다.</div>
+          <p className="text-sm text-gray-500">라운드에 참여하면 이곳에 내역이 표시됩니다.</p>
+        </div>
+      ) : (
+        <>
+          {/* 모바일 카드 레이아웃 */}
+          <div className="sm:hidden space-y-3">
+            {participations.map((item, index) => (
+              <div key={item.id || index} className="card p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium">{item.season || 'Season 1'}</span>
+                    <span className="text-ruby-400 font-bold">{item.round || '-'}</span>
+                  </div>
+                  <span className={`px-2 py-1 text-xs rounded-full ${
+                    item.status === '완료' ? 'bg-dark-600 text-gray-400' : 'bg-ruby-600/20 text-ruby-400'
+                  }`}>
+                    {item.status || '완료'}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-gray-400">{item.date || new Date(item.createdAt).toLocaleDateString('ko-KR')}</span>
+                  {item.amount === 0 ? (
+                    <span className="text-green-400 font-medium">무료</span>
+                  ) : (
+                    <span className="text-ruby-400 font-medium">{(item.amount || 0).toLocaleString()}원</span>
+                  )}
+                </div>
               </div>
-              <span className={`px-2 py-1 text-xs rounded-full ${
-                item.status === '완료' ? 'bg-dark-600 text-gray-400' : 'bg-ruby-600/20 text-ruby-400'
-              }`}>
-                {item.status}
-              </span>
-            </div>
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-gray-400">{item.date}</span>
-              {item.amount === 0 ? (
-                <span className="text-green-400 font-medium">무료</span>
-              ) : (
-                <span className="text-ruby-400 font-medium">{item.amount.toLocaleString()}원</span>
-              )}
+            ))}
+          </div>
+
+          {/* PC 테이블 레이아웃 */}
+          <div className="hidden sm:block card overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-dark-700">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-xs sm:text-sm font-medium text-gray-400">시즌</th>
+                    <th className="px-4 py-3 text-left text-xs sm:text-sm font-medium text-gray-400">라운드</th>
+                    <th className="px-4 py-3 text-left text-xs sm:text-sm font-medium text-gray-400">참여일</th>
+                    <th className="px-4 py-3 text-right text-xs sm:text-sm font-medium text-gray-400">참여비</th>
+                    <th className="px-4 py-3 text-right text-xs sm:text-sm font-medium text-gray-400">상태</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-dark-700">
+                  {participations.map((item, index) => (
+                    <tr key={item.id || index} className="hover:bg-dark-700/50 transition-colors">
+                      <td className="px-4 py-3 text-xs sm:text-sm">{item.season || 'Season 1'}</td>
+                      <td className="px-4 py-3 text-xs sm:text-sm font-medium">{item.round || '-'}</td>
+                      <td className="px-4 py-3 text-xs sm:text-sm text-gray-400">{item.date || new Date(item.createdAt).toLocaleDateString('ko-KR')}</td>
+                      <td className="px-4 py-3 text-xs sm:text-sm text-right">
+                        {item.amount === 0 ? (
+                          <span className="text-green-400">무료</span>
+                        ) : (
+                          <span className="text-ruby-400">{(item.amount || 0).toLocaleString()}원</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <span className={`px-2 py-1 text-xs rounded-full ${
+                          item.status === '완료' ? 'bg-dark-600 text-gray-400' : 'bg-ruby-600/20 text-ruby-400'
+                        }`}>
+                          {item.status || '완료'}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </div>
-        ))}
-      </div>
-
-      {/* PC 테이블 레이아웃 */}
-      <div className="hidden sm:block card overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-dark-700">
-              <tr>
-                <th className="px-4 py-3 text-left text-xs sm:text-sm font-medium text-gray-400">시즌</th>
-                <th className="px-4 py-3 text-left text-xs sm:text-sm font-medium text-gray-400">라운드</th>
-                <th className="px-4 py-3 text-left text-xs sm:text-sm font-medium text-gray-400">참여일</th>
-                <th className="px-4 py-3 text-right text-xs sm:text-sm font-medium text-gray-400">참여비</th>
-                <th className="px-4 py-3 text-right text-xs sm:text-sm font-medium text-gray-400">상태</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-dark-700">
-              {participationData.map((item) => (
-                <tr key={item.id} className="hover:bg-dark-700/50 transition-colors">
-                  <td className="px-4 py-3 text-xs sm:text-sm">{item.season}</td>
-                  <td className="px-4 py-3 text-xs sm:text-sm font-medium">{item.round}</td>
-                  <td className="px-4 py-3 text-xs sm:text-sm text-gray-400">{item.date}</td>
-                  <td className="px-4 py-3 text-xs sm:text-sm text-right">
-                    {item.amount === 0 ? (
-                      <span className="text-green-400">무료</span>
-                    ) : (
-                      <span className="text-ruby-400">{item.amount.toLocaleString()}원</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <span className={`px-2 py-1 text-xs rounded-full ${
-                      item.status === '완료' ? 'bg-dark-600 text-gray-400' : 'bg-ruby-600/20 text-ruby-400'
-                    }`}>
-                      {item.status}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+        </>
+      )}
     </div>
   );
 }
 
 function PaymentHistory() {
+  const [payments, setPayments] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadPayments = async () => {
+      const userEmail = localStorage.getItem('userEmail');
+      if (userEmail) {
+        const result = await getPaymentsByUser(userEmail);
+        if (result.success && result.data) {
+          setPayments(result.data);
+        }
+      }
+      setLoading(false);
+    };
+    loadPayments();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="space-y-4">
+        <h3 className="text-lg sm:text-xl font-bold">결제내역</h3>
+        <div className="card p-8 text-center text-gray-400">로딩 중...</div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
       <h3 className="text-lg sm:text-xl font-bold">결제내역</h3>
 
-      {/* 모바일 카드 레이아웃 */}
-      <div className="sm:hidden space-y-3">
-        {paymentData.map((item) => (
-          <div key={item.id} className="card p-4">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-gray-400 text-sm">{item.date}</span>
-              <span className="px-2 py-1 text-xs rounded-full bg-green-600/20 text-green-400">
-                {item.status}
-              </span>
-            </div>
-            <p className="text-sm font-medium mb-3">{item.description}</p>
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-gray-400">{item.method}</span>
-              <span className="text-ruby-400 font-medium">
-                {item.amount === 0 ? '무료' : `${item.amount.toLocaleString()}원`}
-              </span>
+      {payments.length === 0 ? (
+        <div className="card p-8 text-center">
+          <div className="text-gray-400 mb-2">결제내역이 없습니다.</div>
+          <p className="text-sm text-gray-500">결제가 완료되면 이곳에 내역이 표시됩니다.</p>
+        </div>
+      ) : (
+        <>
+          {/* 모바일 카드 레이아웃 */}
+          <div className="sm:hidden space-y-3">
+            {payments.map((item, index) => (
+              <div key={item.id || index} className="card p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-gray-400 text-sm">{item.date || new Date(item.createdAt).toLocaleDateString('ko-KR')}</span>
+                  <span className="px-2 py-1 text-xs rounded-full bg-green-600/20 text-green-400">
+                    {item.status || '완료'}
+                  </span>
+                </div>
+                <p className="text-sm font-medium mb-3">{item.description || '-'}</p>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-gray-400">{item.method || '-'}</span>
+                  <span className="text-ruby-400 font-medium">
+                    {item.amount === 0 ? '무료' : `${(item.amount || 0).toLocaleString()}원`}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* PC 테이블 레이아웃 */}
+          <div className="hidden sm:block card overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-dark-700">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-xs sm:text-sm font-medium text-gray-400">결제일</th>
+                    <th className="px-4 py-3 text-left text-xs sm:text-sm font-medium text-gray-400">내용</th>
+                    <th className="px-4 py-3 text-right text-xs sm:text-sm font-medium text-gray-400">금액</th>
+                    <th className="px-4 py-3 text-right text-xs sm:text-sm font-medium text-gray-400">결제수단</th>
+                    <th className="px-4 py-3 text-right text-xs sm:text-sm font-medium text-gray-400">상태</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-dark-700">
+                  {payments.map((item, index) => (
+                    <tr key={item.id || index} className="hover:bg-dark-700/50 transition-colors">
+                      <td className="px-4 py-3 text-xs sm:text-sm text-gray-400">{item.date || new Date(item.createdAt).toLocaleDateString('ko-KR')}</td>
+                      <td className="px-4 py-3 text-xs sm:text-sm">{item.description || '-'}</td>
+                      <td className="px-4 py-3 text-xs sm:text-sm text-right text-ruby-400">
+                        {item.amount === 0 ? '무료' : `${(item.amount || 0).toLocaleString()}원`}
+                      </td>
+                      <td className="px-4 py-3 text-xs sm:text-sm text-right text-gray-400">{item.method || '-'}</td>
+                      <td className="px-4 py-3 text-right">
+                        <span className="px-2 py-1 text-xs rounded-full bg-green-600/20 text-green-400">
+                          {item.status || '완료'}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </div>
-        ))}
-      </div>
-
-      {/* PC 테이블 레이아웃 */}
-      <div className="hidden sm:block card overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-dark-700">
-              <tr>
-                <th className="px-4 py-3 text-left text-xs sm:text-sm font-medium text-gray-400">결제일</th>
-                <th className="px-4 py-3 text-left text-xs sm:text-sm font-medium text-gray-400">내용</th>
-                <th className="px-4 py-3 text-right text-xs sm:text-sm font-medium text-gray-400">금액</th>
-                <th className="px-4 py-3 text-right text-xs sm:text-sm font-medium text-gray-400">결제수단</th>
-                <th className="px-4 py-3 text-right text-xs sm:text-sm font-medium text-gray-400">상태</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-dark-700">
-              {paymentData.map((item) => (
-                <tr key={item.id} className="hover:bg-dark-700/50 transition-colors">
-                  <td className="px-4 py-3 text-xs sm:text-sm text-gray-400">{item.date}</td>
-                  <td className="px-4 py-3 text-xs sm:text-sm">{item.description}</td>
-                  <td className="px-4 py-3 text-xs sm:text-sm text-right text-ruby-400">
-                    {item.amount === 0 ? '무료' : `${item.amount.toLocaleString()}원`}
-                  </td>
-                  <td className="px-4 py-3 text-xs sm:text-sm text-right text-gray-400">{item.method}</td>
-                  <td className="px-4 py-3 text-right">
-                    <span className="px-2 py-1 text-xs rounded-full bg-green-600/20 text-green-400">
-                      {item.status}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+        </>
+      )}
     </div>
   );
 }
@@ -672,17 +747,127 @@ function Coupons() {
 function Profile() {
   const navigate = useNavigate();
   const [isEditing, setIsEditing] = useState(false);
-  const [formData, setFormData] = useState({
-    name: localStorage.getItem('userName') || userData.name,
-    email: localStorage.getItem('userEmail') || userData.email,
-    phone: userData.phone,
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [userInfo, setUserInfo] = useState(null);
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: '',
   });
+  const [passwordError, setPasswordError] = useState('');
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    phone: '',
+  });
+
+  useEffect(() => {
+    const loadUserInfo = async () => {
+      const email = localStorage.getItem('userEmail');
+      if (email) {
+        const result = await getUserDetail(email);
+        if (result.success) {
+          setUserInfo(result.data);
+          setFormData({
+            name: result.data.name || '',
+            email: result.data.email || '',
+            phone: result.data.phone || '',
+          });
+        }
+      }
+    };
+    loadUserInfo();
+  }, []);
 
   const handleLogout = () => {
     localStorage.removeItem('isLoggedIn');
     localStorage.removeItem('userName');
     localStorage.removeItem('userEmail');
+    localStorage.removeItem('adultVerified');
     navigate('/');
+  };
+
+  const handleWithdraw = async () => {
+    const confirmed = window.confirm('정말 회원탈퇴를 하시겠습니까?\n탈퇴 시 모든 데이터가 삭제되며 복구할 수 없습니다.');
+    if (!confirmed) return;
+
+    const email = localStorage.getItem('userEmail');
+    if (!email) {
+      alert('로그인 정보를 찾을 수 없습니다.');
+      return;
+    }
+
+    const result = await deleteUser(email);
+    if (result.success) {
+      localStorage.removeItem('isLoggedIn');
+      localStorage.removeItem('userName');
+      localStorage.removeItem('userEmail');
+      localStorage.removeItem('adultVerified');
+      alert('회원탈퇴가 완료되었습니다.');
+      navigate('/');
+    } else {
+      alert(result.error || '회원탈퇴에 실패했습니다.');
+    }
+  };
+
+  const handlePasswordChange = async () => {
+    setPasswordError('');
+
+    if (!passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword) {
+      setPasswordError('모든 필드를 입력해주세요.');
+      return;
+    }
+
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      setPasswordError('새 비밀번호가 일치하지 않습니다.');
+      return;
+    }
+
+    if (passwordData.newPassword.length < 4) {
+      setPasswordError('새 비밀번호는 4자 이상이어야 합니다.');
+      return;
+    }
+
+    const email = localStorage.getItem('userEmail');
+    if (!email) {
+      setPasswordError('로그인 정보를 찾을 수 없습니다.');
+      return;
+    }
+
+    const result = await changePassword(email, passwordData.currentPassword, passwordData.newPassword);
+    if (result.success) {
+      alert('비밀번호가 변경되었습니다.');
+      setShowPasswordModal(false);
+      setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
+    } else {
+      setPasswordError(result.error || '비밀번호 변경에 실패했습니다.');
+    }
+  };
+
+  const handleSaveProfile = async () => {
+    if (!formData.name.trim()) {
+      alert('이름을 입력해주세요.');
+      return;
+    }
+
+    const email = localStorage.getItem('userEmail');
+    if (!email) {
+      alert('로그인 정보를 찾을 수 없습니다.');
+      return;
+    }
+
+    const result = await updateUser(email, {
+      name: formData.name,
+      phone: formData.phone,
+    });
+
+    if (result.success) {
+      localStorage.setItem('userName', formData.name);
+      alert('개인정보가 수정되었습니다.');
+      setIsEditing(false);
+    } else {
+      alert(result.error || '개인정보 수정에 실패했습니다.');
+    }
   };
 
   return (
@@ -739,10 +924,12 @@ function Profile() {
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-400 mb-2">가입일</label>
-            <p className="px-4 py-3 bg-dark-700 rounded-lg text-gray-400">{userData.joinDate}</p>
+            <p className="px-4 py-3 bg-dark-700 rounded-lg text-gray-400">
+              {userInfo?.createdAt ? new Date(userInfo.createdAt).toLocaleDateString('ko-KR') : '-'}
+            </p>
           </div>
           {isEditing && (
-            <button className="btn-primary w-full py-3 mt-4">
+            <button onClick={handleSaveProfile} className="btn-primary w-full py-3 mt-4">
               변경사항 저장
             </button>
           )}
@@ -751,13 +938,77 @@ function Profile() {
       <div className="card p-4 sm:p-6 border-red-900/30">
         <h4 className="font-medium text-red-400 mb-3">계정 관리</h4>
         <div className="flex flex-wrap gap-3">
-          <button className="text-sm text-gray-400 hover:text-white">비밀번호 변경</button>
+          <button onClick={() => setShowPasswordModal(true)} className="text-sm text-gray-400 hover:text-white">비밀번호 변경</button>
           <span className="text-dark-600">|</span>
           <button onClick={handleLogout} className="text-sm text-gray-400 hover:text-white">로그아웃</button>
           <span className="text-dark-600">|</span>
-          <button className="text-sm text-red-400 hover:text-red-300">회원탈퇴</button>
+          <button onClick={handleWithdraw} className="text-sm text-red-400 hover:text-red-300">회원탈퇴</button>
         </div>
       </div>
+
+      {/* 비밀번호 변경 모달 */}
+      {showPasswordModal && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <div className="bg-dark-800 rounded-xl p-6 w-full max-w-md">
+            <h3 className="text-lg font-bold mb-4">비밀번호 변경</h3>
+            {passwordError && (
+              <div className="mb-4 p-3 bg-red-600/10 border border-red-600/30 rounded-lg text-sm text-red-400">
+                {passwordError}
+              </div>
+            )}
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-400 mb-2">현재 비밀번호</label>
+                <input
+                  type="password"
+                  value={passwordData.currentPassword}
+                  onChange={(e) => setPasswordData({ ...passwordData, currentPassword: e.target.value })}
+                  className="w-full px-4 py-3 bg-dark-700 border border-dark-600 rounded-lg text-white focus:outline-none focus:border-ruby-500"
+                  placeholder="현재 비밀번호 입력"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-400 mb-2">새 비밀번호</label>
+                <input
+                  type="password"
+                  value={passwordData.newPassword}
+                  onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
+                  className="w-full px-4 py-3 bg-dark-700 border border-dark-600 rounded-lg text-white focus:outline-none focus:border-ruby-500"
+                  placeholder="새 비밀번호 입력"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-400 mb-2">새 비밀번호 확인</label>
+                <input
+                  type="password"
+                  value={passwordData.confirmPassword}
+                  onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })}
+                  className="w-full px-4 py-3 bg-dark-700 border border-dark-600 rounded-lg text-white focus:outline-none focus:border-ruby-500"
+                  placeholder="새 비밀번호 다시 입력"
+                />
+              </div>
+            </div>
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => {
+                  setShowPasswordModal(false);
+                  setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
+                  setPasswordError('');
+                }}
+                className="flex-1 py-3 bg-dark-600 hover:bg-dark-500 rounded-lg transition-colors"
+              >
+                취소
+              </button>
+              <button
+                onClick={handlePasswordChange}
+                className="flex-1 py-3 bg-ruby-600 hover:bg-ruby-500 rounded-lg transition-colors"
+              >
+                변경하기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
