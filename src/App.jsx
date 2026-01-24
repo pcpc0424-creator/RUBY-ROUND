@@ -22,6 +22,7 @@ import YouthPolicy from './pages/YouthPolicy';
 import PaymentSuccess from './pages/PaymentSuccess';
 import PaymentFail from './pages/PaymentFail';
 import KakaoCallback from './pages/KakaoCallback';
+import GoogleCallback from './pages/GoogleCallback';
 
 // Admin pages
 import AdminLayout from './components/admin/AdminLayout';
@@ -51,6 +52,7 @@ function App() {
         {/* Customer Login */}
         <Route path="/login" element={<Login />} />
         <Route path="/oauth" element={<KakaoCallback />} />
+        <Route path="/oauth/google" element={<GoogleCallback />} />
 
         {/* Admin Routes */}
         <Route path="/admin/login" element={<AdminLogin />} />

@@ -591,6 +591,58 @@ export const registerUser = async (userData) => {
   return { success: true, data: newUser };
 };
 
+// 소셜 로그인 사용자 등록/조회
+export const registerOrGetSocialUser = async (userData) => {
+  const users = getFromStorage(STORAGE_KEYS.USERS, []);
+
+  // 기존 사용자 확인 (이메일로)
+  const existingUser = users.find(u => u.email === userData.email);
+
+  if (existingUser) {
+    // 기존 사용자 - 소셜 로그인 정보 업데이트
+    existingUser.lastLoginAt = new Date().toISOString();
+    existingUser.loginProvider = userData.loginProvider;
+    if (userData.profileImage) {
+      existingUser.profileImage = userData.profileImage;
+    }
+    existingUser.updatedAt = new Date().toISOString();
+    saveToStorage(STORAGE_KEYS.USERS, users);
+    return { success: true, data: existingUser, isNewUser: false };
+  }
+
+  // 새 사용자 등록
+  const newUser = {
+    id: generateId('USR'),
+    name: userData.name,
+    email: userData.email,
+    phone: userData.phone || '',
+    profileImage: userData.profileImage || '',
+    loginProvider: userData.loginProvider, // 'kakao' or 'google'
+    socialId: userData.socialId, // 카카오/구글 ID
+    status: 'active',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    lastLoginAt: new Date().toISOString(),
+  };
+
+  users.unshift(newUser);
+  saveToStorage(STORAGE_KEYS.USERS, users);
+
+  // 기본 교환금 잔액 설정
+  const balances = getFromStorage(STORAGE_KEYS.USER_EXCHANGE_BALANCE, {});
+  balances[newUser.email] = {
+    userId: newUser.email,
+    totalBalance: 0,
+    availableBalance: 0,
+    holdBalance: 0,
+    usedBalance: 0,
+    ledger: [],
+  };
+  saveToStorage(STORAGE_KEYS.USER_EXCHANGE_BALANCE, balances);
+
+  return { success: true, data: newUser, isNewUser: true };
+};
+
 // 사용자 로그인
 export const loginUser = async (email, password) => {
   const users = getFromStorage(STORAGE_KEYS.USERS, []);

@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+require('dotenv').config();
 
 const app = express();
 const PORT = 3010;
@@ -9,6 +10,11 @@ const TOSS_SECRET_KEY = 'live_gsk_EP59LybZ8Bp4XzPjXxzkV6GYo7pR';
 
 // 카카오 REST API 키
 const KAKAO_REST_API_KEY = '3dd43ca76776af78ace98fbea2cd032c';
+const KAKAO_CLIENT_SECRET = 'pL6T6sC2Eem6Ml6p9CebKuGDVn05PwPt';
+
+// 구글 OAuth 설정 (환경변수에서 로드)
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '';
+const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || '';
 
 app.use(cors());
 app.use(express.json());
@@ -78,7 +84,7 @@ app.post('/api/auth/kakao', async (req, res) => {
   }
 
   try {
-    const requestBody = `grant_type=authorization_code&client_id=${KAKAO_REST_API_KEY}&redirect_uri=${encodeURIComponent(redirectUri)}&code=${code}`;
+    const requestBody = `grant_type=authorization_code&client_id=${KAKAO_REST_API_KEY}&client_secret=${KAKAO_CLIENT_SECRET}&redirect_uri=${encodeURIComponent(redirectUri)}&code=${code}`;
 
     console.log('토큰 요청 바디:', requestBody);
 
@@ -140,6 +146,87 @@ app.post('/api/auth/kakao', async (req, res) => {
 
   } catch (error) {
     console.error('카카오 로그인 오류:', error);
+    res.status(500).json({
+      success: false,
+      error: '서버 오류가 발생했습니다.'
+    });
+  }
+});
+
+// 구글 로그인 API
+app.post('/api/auth/google', async (req, res) => {
+  const { code, redirectUri } = req.body;
+
+  console.log('구글 로그인 요청:', { code: code?.substring(0, 20) + '...', redirectUri });
+
+  if (!code || !redirectUri) {
+    return res.status(400).json({
+      success: false,
+      error: '필수 파라미터가 누락되었습니다.'
+    });
+  }
+
+  try {
+    // 1. 인가 코드로 액세스 토큰 받기
+    const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: new URLSearchParams({
+        code: code,
+        client_id: GOOGLE_CLIENT_ID,
+        client_secret: GOOGLE_CLIENT_SECRET,
+        redirect_uri: redirectUri,
+        grant_type: 'authorization_code',
+      }),
+    });
+
+    const tokenData = await tokenResponse.json();
+
+    if (tokenData.error) {
+      console.error('구글 토큰 에러:', tokenData);
+      return res.status(400).json({
+        success: false,
+        error: tokenData.error_description || '토큰 발급 실패'
+      });
+    }
+
+    // 2. 액세스 토큰으로 사용자 정보 가져오기
+    const userResponse = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+      headers: {
+        Authorization: `Bearer ${tokenData.access_token}`,
+      },
+    });
+
+    const userData = await userResponse.json();
+
+    if (userData.error) {
+      console.error('구글 사용자 정보 에러:', userData);
+      return res.status(400).json({
+        success: false,
+        error: '사용자 정보를 가져올 수 없습니다.'
+      });
+    }
+
+    // 3. 사용자 정보 추출
+    const userInfo = {
+      googleId: userData.id,
+      email: userData.email,
+      name: userData.name || userData.given_name || '구글 사용자',
+      profileImage: userData.picture || '',
+      accessToken: tokenData.access_token,
+    };
+
+    console.log('구글 로그인 성공:', userInfo.email);
+
+    res.json({
+      success: true,
+      data: userInfo
+    });
+
+  } catch (error) {
+    console.error('구글 로그인 오류:', error);
     res.status(500).json({
       success: false,
       error: '서버 오류가 발생했습니다.'

@@ -7,6 +7,9 @@ import { ADULT_VERIFICATION_METHODS } from '../constants/exchangeConstants';
 const KAKAO_JS_KEY = '8bfa8dcca7350d0d0b9b866bcaea6f89';
 const KAKAO_REST_API_KEY = '3dd43ca76776af78ace98fbea2cd032c';
 
+// 구글 설정
+const GOOGLE_CLIENT_ID = '719952954585-c1a0qjdfk2jo7ml11pou2ept5coc55r6.apps.googleusercontent.com';
+
 // 테스트 계정
 const TEST_ACCOUNT = {
   email: 'test@ruby.com',
@@ -52,6 +55,15 @@ export default function Login() {
     window.Kakao.Auth.authorize({
       redirectUri: window.location.origin + '/oauth',
     });
+  };
+
+  // 구글 로그인 핸들러
+  const handleGoogleLogin = () => {
+    const redirectUri = window.location.origin + '/oauth/google';
+    const scope = 'email profile openid';
+    const googleAuthUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${GOOGLE_CLIENT_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${encodeURIComponent(scope)}&access_type=offline&prompt=consent`;
+
+    window.location.href = googleAuthUrl;
   };
 
   const handleSubmit = async (e) => {
@@ -409,7 +421,11 @@ export default function Login() {
           </div>
 
           <div className="mt-4 sm:mt-6 grid grid-cols-2 gap-3 sm:gap-4">
-            <button className="flex items-center justify-center gap-2 px-3 py-2.5 sm:px-4 sm:py-3 bg-dark-800 border border-dark-600 rounded-lg hover:border-dark-500 hover:bg-dark-700 transition-all duration-300 group">
+            <button
+              type="button"
+              onClick={handleGoogleLogin}
+              className="flex items-center justify-center gap-2 px-3 py-2.5 sm:px-4 sm:py-3 bg-dark-800 border border-dark-600 rounded-lg hover:border-dark-500 hover:bg-dark-700 transition-all duration-300 group"
+            >
               <svg className="w-4 h-4 sm:w-5 sm:h-5" viewBox="0 0 24 24">
                 <path fill="#EA4335" d="M5.26620003,9.76452941 C6.19878754,6.93863203 8.85444915,4.90909091 12,4.90909091 C13.6909091,4.90909091 15.2181818,5.50909091 16.4181818,6.49090909 L19.9090909,3 C17.7818182,1.14545455 15.0545455,0 12,0 C7.27006974,0 3.1977497,2.69829785 1.23999023,6.65002441 L5.26620003,9.76452941 Z"/>
                 <path fill="#34A853" d="M16.0407269,18.0125889 C14.9509167,18.7163016 13.5660892,19.0909091 12,19.0909091 C8.86648613,19.0909091 6.21911939,17.076871 5.27698177,14.2678769 L1.23746264,17.3349879 C3.19279051,21.2936293 7.26500293,24 12,24 C14.9328362,24 17.7353462,22.9573905 19.834192,20.9995801 L16.0407269,18.0125889 Z"/>

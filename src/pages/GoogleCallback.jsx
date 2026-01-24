@@ -2,9 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { registerOrGetSocialUser } from '../api/exchangeApi';
 
-const KAKAO_JS_KEY = '8bfa8dcca7350d0d0b9b866bcaea6f89';
-
-export default function KakaoCallback() {
+export default function GoogleCallback() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [status, setStatus] = useState('processing');
@@ -16,13 +14,13 @@ export default function KakaoCallback() {
 
     if (errorParam) {
       setStatus('error');
-      setError('카카오 로그인이 취소되었습니다.');
+      setError('구글 로그인이 취소되었습니다.');
       setTimeout(() => navigate('/login'), 2000);
       return;
     }
 
     if (code) {
-      handleKakaoCallback(code);
+      handleGoogleCallback(code);
     } else {
       setStatus('error');
       setError('인증 코드가 없습니다.');
@@ -30,29 +28,23 @@ export default function KakaoCallback() {
     }
   }, [searchParams]);
 
-  const handleKakaoCallback = async (code) => {
+  const handleGoogleCallback = async (code) => {
     try {
-      // Kakao SDK 초기화
-      if (window.Kakao && !window.Kakao.isInitialized()) {
-        window.Kakao.init(KAKAO_JS_KEY);
-      }
-
-      // 인가 코드로 토큰 요청 (SDK 사용)
-      const response = await fetch('/api/auth/kakao', {
+      const response = await fetch('/api/auth/google', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           code: code,
-          redirectUri: window.location.origin + '/oauth',
+          redirectUri: window.location.origin + '/oauth/google',
         }),
       });
 
       const result = await response.json();
 
       if (!result.success) {
-        throw new Error(result.error || '카카오 로그인 실패');
+        throw new Error(result.error || '구글 로그인 실패');
       }
 
       const userInfo = result.data;
@@ -62,8 +54,8 @@ export default function KakaoCallback() {
         name: userInfo.name,
         email: userInfo.email,
         profileImage: userInfo.profileImage || '',
-        loginProvider: 'kakao',
-        socialId: userInfo.kakaoId,
+        loginProvider: 'google',
+        socialId: userInfo.googleId,
       });
 
       if (!registerResult.success) {
@@ -75,16 +67,15 @@ export default function KakaoCallback() {
       localStorage.setItem('userName', registerResult.data.name);
       localStorage.setItem('userEmail', registerResult.data.email);
       localStorage.setItem('userProfileImage', registerResult.data.profileImage || '');
-      localStorage.setItem('loginProvider', 'kakao');
-      localStorage.setItem('kakaoAccessToken', userInfo.accessToken);
+      localStorage.setItem('loginProvider', 'google');
 
       setStatus('success');
       setTimeout(() => navigate('/'), 1000);
 
     } catch (err) {
-      console.error('카카오 로그인 에러:', err);
+      console.error('구글 로그인 에러:', err);
       setStatus('error');
-      setError(err.message || '카카오 로그인 처리 중 오류가 발생했습니다.');
+      setError(err.message || '구글 로그인 처리 중 오류가 발생했습니다.');
       setTimeout(() => navigate('/login'), 3000);
     }
   };
@@ -94,8 +85,8 @@ export default function KakaoCallback() {
       <div className="text-center">
         {status === 'processing' && (
           <>
-            <div className="w-16 h-16 mx-auto mb-4 border-4 border-yellow-400 border-t-transparent rounded-full animate-spin" />
-            <p className="text-white text-lg">카카오 로그인 처리 중...</p>
+            <div className="w-16 h-16 mx-auto mb-4 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
+            <p className="text-white text-lg">구글 로그인 처리 중...</p>
           </>
         )}
 
