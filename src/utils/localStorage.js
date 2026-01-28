@@ -35,9 +35,9 @@ const sampleApplications = [
     status: 'completed',
     statusHistory: [
       { status: 'received', timestamp: '2026-01-10T10:00:00Z', actor: 'customer', note: '고객 상담 접수' },
-      { status: 'cs_consulting', timestamp: '2026-01-10T11:00:00Z', actor: 'CS관리자', note: 'CS 상담 시작' },
+      { status: 'cs_consulting', timestamp: '2026-01-10T11:00:00Z', actor: 'CS관리자', note: '전문 상담사 확인 시작' },
       { status: 'consultation_confirmed', timestamp: '2026-01-11T14:00:00Z', actor: 'CS관리자', note: '상담 확정 - 최종 금액: 480,000원' },
-      { status: 'approved', timestamp: '2026-01-11T16:00:00Z', actor: '임시윤', note: '대표 승인 완료 - 교환금 480,000원 차감' },
+      { status: 'approved', timestamp: '2026-01-11T16:00:00Z', actor: '임시윤', note: '내부 승인 완료 - 교환금 480,000원 차감' },
       { status: 'in_production', timestamp: '2026-01-12T09:00:00Z', actor: 'CS관리자', note: '제작 착수' },
       { status: 'ready_to_ship', timestamp: '2026-01-14T09:00:00Z', actor: 'CS관리자', note: '출고 준비 완료' },
       { status: 'shipping', timestamp: '2026-01-14T10:00:00Z', actor: 'CS관리자', note: '배송 시작 - 송장번호: CJ1234567890' },
@@ -94,9 +94,9 @@ const sampleApplications = [
     status: 'in_production',
     statusHistory: [
       { status: 'received', timestamp: '2026-01-14T09:00:00Z', actor: 'customer', note: '고객 상담 접수' },
-      { status: 'cs_consulting', timestamp: '2026-01-14T10:00:00Z', actor: 'CS관리자', note: 'CS 상담 시작' },
+      { status: 'cs_consulting', timestamp: '2026-01-14T10:00:00Z', actor: 'CS관리자', note: '전문 상담사 확인 시작' },
       { status: 'consultation_confirmed', timestamp: '2026-01-14T15:00:00Z', actor: 'CS관리자', note: '상담 확정 - 최종 금액: 750,000원' },
-      { status: 'approved', timestamp: '2026-01-14T17:00:00Z', actor: '임시윤', note: '대표 승인 완료 - 교환금 750,000원 차감' },
+      { status: 'approved', timestamp: '2026-01-14T17:00:00Z', actor: '임시윤', note: '내부 승인 완료 - 교환금 750,000원 차감' },
       { status: 'in_production', timestamp: '2026-01-15T09:00:00Z', actor: 'CS관리자', note: '제작 착수' },
     ],
     consultation: {
@@ -150,7 +150,7 @@ const sampleApplications = [
     status: 'cs_consulting',
     statusHistory: [
       { status: 'received', timestamp: '2026-01-16T08:00:00Z', actor: 'customer', note: '고객 상담 접수' },
-      { status: 'cs_consulting', timestamp: '2026-01-16T09:30:00Z', actor: 'CS관리자', note: 'CS 상담 시작' },
+      { status: 'cs_consulting', timestamp: '2026-01-16T09:30:00Z', actor: 'CS관리자', note: '전문 상담사 확인 시작' },
     ],
     consultation: {
       finalSpecification: '',
@@ -196,7 +196,7 @@ const sampleUserBalance = {
         amount: 480000,
         balanceBefore: 1500000,
         balanceAfter: 1020000,
-        description: '교환 신청 대표 승인 (EX-20260115-A1B2)',
+        description: '교환 신청 승인 (EX-20260115-A1B2)',
         relatedId: 'EX-20260115-A1B2',
         createdAt: '2026-01-11T16:00:00Z',
       },
@@ -206,7 +206,7 @@ const sampleUserBalance = {
         amount: 750000,
         balanceBefore: 1020000,
         balanceAfter: 270000,
-        description: '교환 신청 대표 승인 (EX-20260114-C3D4)',
+        description: '교환 신청 승인 (EX-20260114-C3D4)',
         relatedId: 'EX-20260114-C3D4',
         createdAt: '2026-01-14T17:00:00Z',
       },

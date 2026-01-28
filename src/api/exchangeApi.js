@@ -1,4 +1,4 @@
-import { STORAGE_KEYS, EXCHANGE_STATUS, DEFAULT_CONSULTATION_MODAL_CONTENT, DELIVERY_STATUS, ADULT_VERIFICATION_STATUS } from '../constants/exchangeConstants';
+import { STORAGE_KEYS, EXCHANGE_STATUS, DEFAULT_CONSULTATION_MODAL_CONTENT } from '../constants/exchangeConstants';
 
 // ID 생성 함수
 const generateId = (prefix) => {
@@ -255,7 +255,7 @@ export const confirmConsultation = async (applicationId, consultationData, admin
   return { success: true, data: application };
 };
 
-// 대표 승인 (교환금 차감 트리거)
+// 승인 (교환금 차감 트리거)
 export const approveApplication = async (applicationId, adminName) => {
   const applications = getFromStorage(STORAGE_KEYS.EXCHANGE_APPLICATIONS);
   const index = applications.findIndex(app => app.id === applicationId);
@@ -298,7 +298,7 @@ export const approveApplication = async (applicationId, adminName) => {
     amount: deductAmount,
     balanceBefore: userBalance.totalBalance,
     balanceAfter: userBalance.totalBalance - deductAmount,
-    description: `교환 신청 대표 승인 (${applicationId})`,
+    description: `교환 신청 승인 (${applicationId})`,
     relatedId: applicationId,
     createdAt: new Date().toISOString(),
   };
@@ -325,7 +325,7 @@ export const approveApplication = async (applicationId, adminName) => {
     status: 'approved',
     timestamp: new Date().toISOString(),
     actor: adminName,
-    note: `대표 승인 완료 - 교환금 ${deductAmount.toLocaleString()}원 차감`,
+    note: `내부 승인 완료 - 교환금 ${deductAmount.toLocaleString()}원 차감`,
   });
   application.updatedAt = new Date().toISOString();
 
@@ -382,7 +382,7 @@ export const adminCancelApplication = async (applicationId, adminName, reason) =
   const statusInfo = Object.values(EXCHANGE_STATUS).find(s => s.key === application.status);
 
   if (!statusInfo?.canCancel) {
-    return { success: false, error: '취소할 수 없는 상태입니다. (대표 승인 이후 취소 불가)' };
+    return { success: false, error: '취소할 수 없는 상태입니다. (내부 승인 이후 취소 불가)' };
   }
 
   application.status = 'cancelled';
@@ -645,6 +645,7 @@ export const registerOrGetSocialUser = async (userData) => {
 
 // 사용자 로그인
 export const loginUser = async (email, password) => {
+  initializeSampleUsers();
   const users = getFromStorage(STORAGE_KEYS.USERS, []);
   const user = users.find(u => u.email === email && u.password === password);
 
@@ -1124,6 +1125,15 @@ export const createAdultVerificationRequest = async (userData) => {
   verifications.unshift(newRequest);
   saveToStorage(STORAGE_KEYS.ADULT_VERIFICATIONS, verifications);
 
+  await createAuditLog({
+    action: 'create',
+    targetType: 'verification',
+    targetId: newRequest.id,
+    adminName: userData.userName || userData.userEmail,
+    description: `성인 인증 요청 생성: ${userData.userEmail}`,
+    details: { method: userData.method },
+  });
+
   return { success: true, data: newRequest };
 };
 
@@ -1160,6 +1170,14 @@ export const approveAdultVerification = async (verificationId, adminName) => {
     saveToStorage(STORAGE_KEYS.USERS, users);
   }
 
+  await createAuditLog({
+    action: 'approve',
+    targetType: 'verification',
+    targetId: verificationId,
+    adminName,
+    description: `성인 인증 승인: ${verification.userEmail}`,
+  });
+
   return { success: true, data: verification };
 };
 
@@ -1186,6 +1204,15 @@ export const rejectAdultVerification = async (verificationId, adminName, reason 
 
   verifications[index] = verification;
   saveToStorage(STORAGE_KEYS.ADULT_VERIFICATIONS, verifications);
+
+  await createAuditLog({
+    action: 'reject',
+    targetType: 'verification',
+    targetId: verificationId,
+    adminName,
+    description: `성인 인증 거부: ${verification.userEmail}`,
+    details: { reason },
+  });
 
   return { success: true, data: verification };
 };
@@ -1238,6 +1265,15 @@ export const manualAdultVerification = async (userEmail, adminName) => {
   verifications.unshift(record);
   saveToStorage(STORAGE_KEYS.ADULT_VERIFICATIONS, verifications);
 
+  await createAuditLog({
+    action: 'approve',
+    targetType: 'verification',
+    targetId: record.id,
+    adminName,
+    description: `관리자 수동 성인 인증: ${userEmail}`,
+    details: { method: 'manual' },
+  });
+
   return { success: true, data: users[userIndex] };
 };
 
@@ -1258,6 +1294,15 @@ export const revokeAdultVerification = async (userEmail, adminName, reason = '')
 
   saveToStorage(STORAGE_KEYS.USERS, users);
 
+  await createAuditLog({
+    action: 'status_change',
+    targetType: 'verification',
+    targetId: userEmail,
+    adminName,
+    description: `성인 인증 취소: ${userEmail}`,
+    details: { reason },
+  });
+
   return { success: true, data: users[userIndex] };
 };
 
@@ -1276,6 +1321,84 @@ export const getAdultVerificationStatistics = async () => {
   };
 
   return { success: true, data: stats };
+};
+
+// PASS 본인인증 결과로 성인인증 처리 (자동승인)
+export const completePassVerification = async (userEmail, verificationData) => {
+  const users = getFromStorage(STORAGE_KEYS.USERS, []);
+  const userIndex = users.findIndex(u => u.email === userEmail);
+
+  if (userIndex === -1) {
+    return { success: false, error: '사용자를 찾을 수 없습니다.' };
+  }
+
+  // CI 중복 확인
+  const duplicateCheck = await checkDuplicateCI(verificationData.ci, userEmail);
+  if (!duplicateCheck.success) {
+    return duplicateCheck;
+  }
+
+  // 사용자 정보 업데이트
+  users[userIndex].adultVerified = true;
+  users[userIndex].adultVerifiedAt = new Date().toISOString();
+  users[userIndex].adultVerificationMethod = 'pass';
+  users[userIndex].updatedAt = new Date().toISOString();
+  saveToStorage(STORAGE_KEYS.USERS, users);
+
+  // 인증 기록 생성
+  const verifications = getFromStorage(STORAGE_KEYS.ADULT_VERIFICATIONS, []);
+  const record = {
+    id: generateId('AV'),
+    userEmail,
+    userName: verificationData.name || users[userIndex].name,
+    method: 'pass',
+    status: 'approved',
+    approvedAt: new Date().toISOString(),
+    approvedBy: 'PASS 본인인증 (자동)',
+    birthDate: verificationData.birthDate,
+    isAdult: verificationData.isAdult,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+  verifications.unshift(record);
+  saveToStorage(STORAGE_KEYS.ADULT_VERIFICATIONS, verifications);
+
+  // CI/DI 증빙 저장
+  const evidence = getFromStorage(STORAGE_KEYS.VERIFICATION_EVIDENCE, []);
+  evidence.unshift({
+    id: generateId('VE'),
+    userEmail,
+    ci: verificationData.ci,
+    di: verificationData.di,
+    method: 'pass',
+    verifiedAt: verificationData.verifiedAt || new Date().toISOString(),
+    createdAt: new Date().toISOString(),
+  });
+  saveToStorage(STORAGE_KEYS.VERIFICATION_EVIDENCE, evidence);
+
+  // 감사 로그 기록
+  await createAuditLog({
+    action: 'approve',
+    targetType: 'verification',
+    targetId: record.id,
+    adminName: 'PASS 본인인증 (자동)',
+    description: `PASS 본인인증 완료: ${userEmail}`,
+    details: { method: 'pass', isAdult: verificationData.isAdult },
+  });
+
+  return { success: true, data: users[userIndex] };
+};
+
+// CI로 중복가입 확인
+export const checkDuplicateCI = async (ci, currentUserEmail = '') => {
+  const evidence = getFromStorage(STORAGE_KEYS.VERIFICATION_EVIDENCE, []);
+  const existing = evidence.find(e => e.ci === ci && e.userEmail !== currentUserEmail);
+
+  if (existing) {
+    return { success: false, error: '이미 본인인증이 완료된 다른 계정이 존재합니다.' };
+  }
+
+  return { success: true };
 };
 
 // 사용자의 성인 인증 상태 확인

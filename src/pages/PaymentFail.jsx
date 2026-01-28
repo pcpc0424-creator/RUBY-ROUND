@@ -111,7 +111,7 @@ export default function PaymentFail() {
           </div>
 
           <p className="text-center text-gray-500 text-xs mt-6">
-            결제 관련 문의: <span className="text-ruby-400">1234-5678</span>
+            결제 관련 문의: <span className="text-ruby-400">1551-7827</span>
           </p>
         </div>
       </div>

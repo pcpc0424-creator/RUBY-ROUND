@@ -1,10 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import ExchangeApplyForm from '../components/exchange/ExchangeApplyForm';
 import ExchangeComplete from '../components/exchange/ExchangeComplete';
 import ExchangeHistoryList from '../components/exchange/ExchangeHistoryList';
 import { getUserLedger, getPaymentsByUser } from '../api/seasonApi';
-import { deleteUser, changePassword, updateUser, getUserDetail } from '../api/exchangeApi';
+import { deleteUser, changePassword, updateUser, getUserDetail, checkAdultVerification, completePassVerification } from '../api/exchangeApi';
 
 // 샘플 데이터
 const userData = {
@@ -631,7 +631,7 @@ function BalanceOverview() {
         <ul className="text-xs text-gray-400 space-y-1">
           <li>- 교환금은 시즌 정산 시 자동으로 적립됩니다.</li>
           <li>- 교환금으로 악세사리 제작을 신청할 수 있습니다.</li>
-          <li>- 교환금 차감은 대표 승인 시 이루어집니다.</li>
+          <li>- 교환금 차감은 내부 승인 시 이루어집니다.</li>
         </ul>
       </div>
     </div>
@@ -760,6 +760,10 @@ function Profile() {
     email: '',
     phone: '',
   });
+  const [adultVerified, setAdultVerified] = useState(false);
+  const [adultVerifiedAt, setAdultVerifiedAt] = useState(null);
+  const [verificationLoading, setVerificationLoading] = useState(false);
+  const [verificationError, setVerificationError] = useState('');
 
   useEffect(() => {
     const loadUserInfo = async () => {
@@ -774,9 +778,121 @@ function Profile() {
             phone: result.data.phone || '',
           });
         }
+        // 성인인증 상태 확인
+        const verResult = await checkAdultVerification(email);
+        if (verResult.success) {
+          setAdultVerified(verResult.data.isVerified);
+          setAdultVerifiedAt(verResult.data.verifiedAt);
+        }
       }
     };
     loadUserInfo();
+  }, []);
+
+  // PASS 본인인증 처리
+  const handlePassVerification = useCallback(async () => {
+    setVerificationLoading(true);
+    setVerificationError('');
+
+    try {
+      const API_BASE = import.meta.env.VITE_API_URL || '';
+      const tokenRes = await fetch(`${API_BASE}/api/auth/nice/token`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      const tokenData = await tokenRes.json();
+
+      if (!tokenData.success) {
+        setVerificationError(tokenData.error || '본인인증 준비에 실패했습니다.');
+        setVerificationLoading(false);
+        return;
+      }
+
+      const { data } = tokenData;
+
+      let popupUrl;
+      if (data.simulation) {
+        popupUrl = data.formUrl;
+      } else {
+        popupUrl = `https://nice.checkplus.co.kr/CheckPlusSa498AgreeStmt/mob/agree?m=checkplusService&token_version_id=${data.token_version_id}&enc_data=${encodeURIComponent(data.enc_data)}&integrity_value=${encodeURIComponent(data.integrity_value)}`;
+      }
+
+      const popup = window.open(popupUrl, 'niceAuth', 'width=480,height=720,scrollbars=yes');
+
+      if (!popup) {
+        setVerificationError('팝업이 차단되었습니다. 팝업 차단을 해제해주세요.');
+        setVerificationLoading(false);
+        return;
+      }
+
+      const handleMessage = async (event) => {
+        if (event.origin !== window.location.origin) return;
+        if (event.data?.type !== 'NICE_VERIFICATION') return;
+
+        window.removeEventListener('message', handleMessage);
+
+        const resultToken = event.data.token;
+        if (!resultToken) {
+          setVerificationError('인증 결과를 받을 수 없습니다.');
+          setVerificationLoading(false);
+          return;
+        }
+
+        const resultRes = await fetch(`${API_BASE}/api/auth/nice/result/${resultToken}`);
+        const resultData = await resultRes.json();
+
+        if (!resultData.success) {
+          setVerificationError(resultData.error || '인증 결과 조회에 실패했습니다.');
+          setVerificationLoading(false);
+          return;
+        }
+
+        const result = resultData.data;
+
+        if (!result.isAdult) {
+          setVerificationError('만 19세 미만은 이용할 수 없습니다.');
+          setVerificationLoading(false);
+          return;
+        }
+
+        // 성인인증 완료 처리
+        const email = localStorage.getItem('userEmail');
+        if (email) {
+          const passResult = await completePassVerification(email, {
+            name: result.name,
+            birthDate: result.birthDate,
+            ci: result.ci,
+            di: result.di,
+            isAdult: result.isAdult,
+            verifiedAt: result.verifiedAt,
+          });
+
+          if (passResult.success) {
+            setAdultVerified(true);
+            setAdultVerifiedAt(new Date().toISOString());
+            localStorage.setItem('adultVerified', 'true');
+          } else {
+            setVerificationError(passResult.error || '인증 처리에 실패했습니다.');
+          }
+        }
+
+        setVerificationLoading(false);
+      };
+
+      window.addEventListener('message', handleMessage);
+
+      const checkClosed = setInterval(() => {
+        if (popup.closed) {
+          clearInterval(checkClosed);
+          setVerificationLoading(false);
+          window.removeEventListener('message', handleMessage);
+        }
+      }, 500);
+    } catch (err) {
+      console.error('PASS 인증 오류:', err);
+      setVerificationError('본인인증 처리 중 오류가 발생했습니다.');
+      setVerificationLoading(false);
+    }
   }, []);
 
   const handleLogout = () => {
@@ -935,6 +1051,75 @@ function Profile() {
           )}
         </div>
       </div>
+
+      {/* 성인인증 상태 */}
+      <div className="card p-4 sm:p-6">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <svg className="w-5 h-5 text-ruby-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+            </svg>
+            <h4 className="font-medium text-white">성인 인증</h4>
+          </div>
+          {adultVerified ? (
+            <span className="px-3 py-1 text-xs rounded-full bg-green-600/20 text-green-400 border border-green-600/30 font-medium">
+              인증완료
+            </span>
+          ) : (
+            <span className="px-3 py-1 text-xs rounded-full bg-red-600/20 text-red-400 border border-red-600/30 font-medium">
+              미인증
+            </span>
+          )}
+        </div>
+
+        {adultVerified ? (
+          <div className="text-sm text-gray-400">
+            <p>성인 인증이 완료되었습니다.</p>
+            {adultVerifiedAt && (
+              <p className="mt-1 text-xs text-gray-500">
+                인증일시: {new Date(adultVerifiedAt).toLocaleString('ko-KR')}
+              </p>
+            )}
+          </div>
+        ) : (
+          <div>
+            <p className="text-sm text-gray-400 mb-3">
+              일부 서비스 이용을 위해 성인 인증이 필요합니다.
+            </p>
+            {verificationError && (
+              <div className="mb-3 p-3 bg-red-600/10 border border-red-600/30 rounded-lg text-sm text-red-400">
+                {verificationError}
+              </div>
+            )}
+            <button
+              onClick={handlePassVerification}
+              disabled={verificationLoading}
+              className="w-full sm:w-auto px-6 py-2.5 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white rounded-lg font-medium text-sm transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            >
+              {verificationLoading ? (
+                <>
+                  <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                  인증 진행 중...
+                </>
+              ) : (
+                <>
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                  </svg>
+                  PASS 본인인증
+                </>
+              )}
+            </button>
+            <p className="mt-2 text-xs text-gray-500">
+              * 본인 명의 휴대폰으로 인증이 진행됩니다.
+            </p>
+          </div>
+        )}
+      </div>
+
       <div className="card p-4 sm:p-6 border-red-900/30">
         <h4 className="font-medium text-red-400 mb-3">계정 관리</h4>
         <div className="flex flex-wrap gap-3">

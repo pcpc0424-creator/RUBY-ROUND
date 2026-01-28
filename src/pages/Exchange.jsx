@@ -7,14 +7,14 @@ const processSteps = [
   },
   {
     step: 2,
-    title: '1차 CS 확인(주문요청/상담)',
-    description: 'CS가 신청 내용을 확인하고, 필요 시 상담(옵션/사양/납기/유의사항)을 진행합니다.',
-    details: '처리 목표(SLA): 영업일 기준 24시간 이내 \'CS 주문요청 완료\' 상태까지 처리',
+    title: '1차 전문 상담사 확인',
+    description: '전문 상담사가 신청 내용을 확인하고, 필요 시 상담(옵션/사양/납기/유의사항)을 진행합니다.',
+    details: '처리 목표(SLA): 영업일 기준 24시간 이내 \'전문 상담사 확인 완료\' 상태까지 처리',
   },
   {
     step: 3,
-    title: '2차 대표 승인(최종 확정)',
-    description: '대표 승인 완료 시 주문이 확정되며, 제작/출고 단계로 전환됩니다.',
+    title: '2차 승인(내부 승인 완료 시 확정)',
+    description: '내부 승인 완료 시 주문이 확정되며, 제작/출고 단계로 전환됩니다.',
     details: '',
   },
   {
@@ -32,11 +32,11 @@ const faqItems = [
   },
   {
     question: '주문제작도 가능한가요?',
-    answer: '가능합니다. 교환 신청 후 CS 상담을 통해 예산/선호/사양을 확정하고 대표 승인 후 진행됩니다.',
+    answer: '가능합니다. 교환 신청 후 전문 상담사 확인을 통해 예산/선호/사양을 확정하고 내부 승인 후 진행됩니다.',
   },
   {
     question: '교환 신청을 취소/변경할 수 있나요?',
-    answer: '대표 승인 전까지 가능합니다. 승인 이후에는 제작/출고가 진행될 수 있어 제한될 수 있습니다.',
+    answer: '내부 승인 전까지 가능합니다. 승인 이후에는 제작/출고가 진행될 수 있어 제한될 수 있습니다.',
   },
 ];
 
@@ -203,10 +203,10 @@ export default function Exchange() {
               <div>
                 <h3 className="text-base sm:text-lg font-semibold mb-2 text-red-400">6) 취소/변경 규정(중요)</h3>
                 <p className="text-gray-300 text-sm sm:text-base mb-2">
-                  주문제작/구성 확정 후에는 제작이 시작될 수 있으므로, <strong className="text-white">취소/변경은 '대표 승인 전'까지만 가능</strong>합니다.
+                  주문제작/구성 확정 후에는 제작이 시작될 수 있으므로, <strong className="text-white">취소/변경은 '내부 승인 전'까지만 가능</strong>합니다.
                 </p>
                 <p className="text-gray-500 text-xs sm:text-sm">
-                  대표 승인 이후 취소/변경은 원칙적으로 제한될 수 있으며, 불가피한 사유는 CS를 통해 별도 안내됩니다.
+                  내부 승인 이후 취소/변경은 원칙적으로 제한될 수 있으며, 불가피한 사유는 고객센터를 통해 별도 안내됩니다.
                 </p>
               </div>
             </div>
@@ -335,13 +335,13 @@ export default function Exchange() {
                 이메일 문의
               </a>
               <a
-                href="tel:1588-0000"
+                href="tel:1551-7827"
                 className="btn-secondary inline-flex items-center justify-center gap-2 text-sm"
               >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
                 </svg>
-                전화 문의 (1588-0000)
+                전화 문의 (1551-7827)
               </a>
             </div>
           </div>

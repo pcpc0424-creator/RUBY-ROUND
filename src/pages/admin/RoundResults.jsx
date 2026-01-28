@@ -113,7 +113,7 @@ export default function RoundResults() {
   };
 
   const getStatusBadge = (status) => {
-    const statusInfo = ROUND_RESULT_STATUS[status] || { label: status, color: 'gray' };
+    const statusInfo = Object.values(ROUND_RESULT_STATUS).find(s => s.key === status) || { label: status, color: 'gray' };
     const colorMap = {
       yellow: 'bg-yellow-500/20 text-yellow-400',
       green: 'bg-green-500/20 text-green-400',
@@ -168,7 +168,7 @@ export default function RoundResults() {
             >
               <option value="">전체</option>
               {Object.entries(ROUND_RESULT_STATUS).map(([key, val]) => (
-                <option key={key} value={key}>{val.label}</option>
+                <option key={key} value={val.key}>{val.label}</option>
               ))}
             </select>
           </div>

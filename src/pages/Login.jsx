@@ -1,7 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { registerUser, loginUser, createAdultVerificationRequest, checkAdultVerification } from '../api/exchangeApi';
-import { ADULT_VERIFICATION_METHODS } from '../constants/exchangeConstants';
+import { registerUser, loginUser, checkAdultVerification, completePassVerification } from '../api/exchangeApi';
 
 // 카카오 설정
 const KAKAO_JS_KEY = '8bfa8dcca7350d0d0b9b866bcaea6f89';
@@ -31,9 +30,110 @@ export default function Login() {
     phone: '',
     confirmPassword: '',
     agreeTerms: false,
-    requestAdultVerification: false,
-    birthDate: '',
   });
+  const [verificationResult, setVerificationResult] = useState(null);
+  const [verificationLoading, setVerificationLoading] = useState(false);
+
+  // PASS 본인인증 처리
+  const handlePassVerification = useCallback(async () => {
+    setVerificationLoading(true);
+    setError('');
+
+    try {
+      const API_BASE = import.meta.env.VITE_API_URL || '';
+      const tokenRes = await fetch(`${API_BASE}/api/auth/nice/token`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      const tokenData = await tokenRes.json();
+
+      if (!tokenData.success) {
+        setError(tokenData.error || '본인인증 준비에 실패했습니다.');
+        setVerificationLoading(false);
+        return;
+      }
+
+      const { data } = tokenData;
+
+      // 팝업 열기
+      let popupUrl;
+      if (data.simulation) {
+        popupUrl = data.formUrl;
+      } else {
+        // 실제 NICE 인증 페이지 (form submit 방식)
+        popupUrl = `https://nice.checkplus.co.kr/CheckPlusSa498AgreeStmt/mob/agree?m=checkplusService&token_version_id=${data.token_version_id}&enc_data=${encodeURIComponent(data.enc_data)}&integrity_value=${encodeURIComponent(data.integrity_value)}`;
+      }
+
+      const popup = window.open(popupUrl, 'niceAuth', 'width=480,height=720,scrollbars=yes');
+
+      if (!popup) {
+        setError('팝업이 차단되었습니다. 팝업 차단을 해제해주세요.');
+        setVerificationLoading(false);
+        return;
+      }
+
+      // postMessage 이벤트 리스너
+      const handleMessage = async (event) => {
+        if (event.origin !== window.location.origin) return;
+        if (event.data?.type !== 'NICE_VERIFICATION') return;
+
+        window.removeEventListener('message', handleMessage);
+
+        const resultToken = event.data.token;
+        if (!resultToken) {
+          setError('인증 결과를 받을 수 없습니다.');
+          setVerificationLoading(false);
+          return;
+        }
+
+        // 결과 조회
+        const resultRes = await fetch(`${API_BASE}/api/auth/nice/result/${resultToken}`);
+        const resultData = await resultRes.json();
+
+        if (!resultData.success) {
+          setError(resultData.error || '인증 결과 조회에 실패했습니다.');
+          setVerificationLoading(false);
+          return;
+        }
+
+        const result = resultData.data;
+
+        if (!result.isAdult) {
+          setError('만 19세 미만은 가입할 수 없습니다.');
+          setVerificationLoading(false);
+          return;
+        }
+
+        setVerificationResult({
+          name: result.name,
+          maskedName: result.maskedName,
+          birthDate: result.birthDate,
+          maskedBirthDate: result.maskedBirthDate,
+          ci: result.ci,
+          di: result.di,
+          isAdult: result.isAdult,
+          verified: true,
+          verifiedAt: result.verifiedAt,
+        });
+        setVerificationLoading(false);
+      };
+
+      window.addEventListener('message', handleMessage);
+
+      // 팝업 닫힘 감지
+      const checkClosed = setInterval(() => {
+        if (popup.closed) {
+          clearInterval(checkClosed);
+          setVerificationLoading(false);
+          window.removeEventListener('message', handleMessage);
+        }
+      }, 500);
+    } catch (err) {
+      console.error('PASS 인증 오류:', err);
+      setError('본인인증 처리 중 오류가 발생했습니다.');
+      setVerificationLoading(false);
+    }
+  }, []);
 
   // 카카오 SDK 초기화
   useEffect(() => {
@@ -102,35 +202,13 @@ export default function Login() {
           return;
         }
 
-        if (formData.requestAdultVerification && !formData.birthDate) {
-          setError('성인 인증을 위해 생년월일을 입력해주세요.');
-          setLoading(false);
-          return;
-        }
-
-        // 나이 확인 (만 19세 이상)
-        if (formData.requestAdultVerification && formData.birthDate) {
-          const birthDate = new Date(formData.birthDate);
-          const today = new Date();
-          let age = today.getFullYear() - birthDate.getFullYear();
-          const monthDiff = today.getMonth() - birthDate.getMonth();
-          if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-            age--;
-          }
-          if (age < 19) {
-            setError('성인 인증은 만 19세 이상만 가능합니다.');
-            setLoading(false);
-            return;
-          }
-        }
-
         // 사용자 등록
         const registerResult = await registerUser({
           name: formData.name,
           email: formData.email,
           password: formData.password,
           phone: formData.phone,
-          birthDate: formData.birthDate,
+          birthDate: verificationResult?.birthDate || '',
         });
 
         if (!registerResult.success) {
@@ -139,20 +217,13 @@ export default function Login() {
           return;
         }
 
-        // 성인 인증 요청
-        if (formData.requestAdultVerification) {
-          const verificationResult = await createAdultVerificationRequest({
-            userEmail: formData.email,
-            userName: formData.name,
-            userPhone: formData.phone,
-            birthDate: formData.birthDate,
-            method: 'phone', // 휴대폰 본인인증
-          });
-
-          if (verificationResult.success) {
-            setSuccess('회원가입이 완료되었습니다. 성인 인증 요청이 접수되었으며, 관리자 승인 후 이용 가능합니다.');
+        // PASS 본인인증 결과가 있으면 자동 승인
+        if (verificationResult?.verified) {
+          const passResult = await completePassVerification(formData.email, verificationResult);
+          if (passResult.success) {
+            setSuccess('회원가입이 완료되었습니다. 성인 인증이 완료되었습니다. 로그인해주세요.');
           } else {
-            setSuccess('회원가입이 완료되었습니다. 성인 인증 요청은 실패했습니다. 마이페이지에서 다시 시도해주세요.');
+            setSuccess('회원가입이 완료되었습니다. 성인 인증 처리 중 문제가 발생했습니다. 마이페이지에서 다시 시도해주세요.');
           }
         } else {
           setSuccess('회원가입이 완료되었습니다. 로그인해주세요.');
@@ -161,6 +232,7 @@ export default function Login() {
         // 로그인 상태로 전환
         setTimeout(() => {
           setIsLogin(true);
+          setVerificationResult(null);
           setFormData({
             email: formData.email,
             password: '',
@@ -168,8 +240,6 @@ export default function Login() {
             phone: '',
             confirmPassword: '',
             agreeTerms: false,
-            requestAdultVerification: false,
-            birthDate: '',
           });
         }, 2000);
       }
@@ -325,37 +395,71 @@ export default function Login() {
 
               {/* 성인 인증 섹션 */}
               <div className="animate-fade-in-up p-4 bg-dark-800/50 border border-dark-600 rounded-lg">
-                <div className="flex items-start gap-2 sm:gap-3 mb-3">
-                  <input
-                    type="checkbox"
-                    id="requestAdultVerification"
-                    checked={formData.requestAdultVerification}
-                    onChange={(e) => setFormData({ ...formData, requestAdultVerification: e.target.checked })}
-                    className="mt-1 w-4 h-4 bg-dark-800 border border-dark-600 rounded text-ruby-600 focus:ring-ruby-500"
-                  />
-                  <label htmlFor="requestAdultVerification" className="text-xs sm:text-sm text-gray-300">
-                    <span className="font-medium text-ruby-400">성인 인증 요청</span>
-                    <span className="block text-gray-500 mt-0.5">일부 서비스 이용을 위해 성인 인증이 필요합니다.</span>
-                  </label>
+                <div className="flex items-center gap-2 mb-3">
+                  <svg className="w-4 h-4 sm:w-5 sm:h-5 text-ruby-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                  </svg>
+                  <span className="text-xs sm:text-sm font-medium text-ruby-400">성인 인증</span>
                 </div>
 
-                {formData.requestAdultVerification && (
-                  <div className="mt-3 pt-3 border-t border-dark-600">
-                    <label className="block text-xs sm:text-sm font-medium text-gray-300 mb-1.5 sm:mb-2">
-                      생년월일 <span className="text-ruby-400">*</span>
-                    </label>
-                    <input
-                      type="date"
-                      value={formData.birthDate}
-                      onChange={(e) => setFormData({ ...formData, birthDate: e.target.value })}
-                      className="w-full px-3 py-2.5 sm:px-4 sm:py-3 bg-dark-700 border border-dark-600 rounded-lg text-white focus:outline-none focus:border-ruby-500 focus:ring-2 focus:ring-ruby-500/20 transition-all duration-300 text-sm sm:text-base"
-                      max={new Date(new Date().setFullYear(new Date().getFullYear() - 19)).toISOString().split('T')[0]}
-                    />
-                    <p className="mt-2 text-xs text-gray-500">
-                      * 만 19세 이상만 성인 인증 신청이 가능합니다.
+                {verificationResult?.verified ? (
+                  <div>
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="px-2 py-1 text-xs rounded-full bg-green-600/20 text-green-400 border border-green-600/30">
+                        인증완료
+                      </span>
+                    </div>
+                    <p className="text-xs sm:text-sm text-gray-300">
+                      인증 이름: <span className="text-white">{verificationResult.maskedName}</span>
+                      <span className="text-dark-500 mx-2">|</span>
+                      생년월일: <span className="text-white">{verificationResult.maskedBirthDate}</span>
                     </p>
-                    <p className="mt-1 text-xs text-yellow-400/70">
-                      * 성인 인증은 관리자 승인 후 완료됩니다.
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setVerificationResult(null);
+                        handlePassVerification();
+                      }}
+                      className="mt-3 text-xs sm:text-sm text-gray-400 hover:text-ruby-400 transition-colors underline underline-offset-2"
+                    >
+                      다시 인증하기
+                    </button>
+                  </div>
+                ) : (
+                  <div>
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className="px-2 py-1 text-xs rounded-full bg-red-600/20 text-red-400 border border-red-600/30">
+                        미인증
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handlePassVerification}
+                      disabled={verificationLoading}
+                      className="w-full py-2.5 sm:py-3 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white rounded-lg font-medium text-sm sm:text-base transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    >
+                      {verificationLoading ? (
+                        <>
+                          <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                          </svg>
+                          인증 진행 중...
+                        </>
+                      ) : (
+                        <>
+                          <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                          </svg>
+                          PASS 본인인증 하기
+                        </>
+                      )}
+                    </button>
+                    <p className="mt-2 text-[10px] sm:text-xs text-gray-500">
+                      * 본인 명의 휴대폰으로 인증이 진행됩니다.
+                    </p>
+                    <p className="mt-1 text-[10px] sm:text-xs text-gray-500">
+                      * 만 19세 이상만 가입 가능합니다.
                     </p>
                   </div>
                 )}
@@ -371,8 +475,8 @@ export default function Login() {
                   required
                 />
                 <label htmlFor="agreeTerms" className="text-xs sm:text-sm text-gray-400">
-                  <a href="#" className="text-ruby-400 hover:underline">이용약관</a> 및{' '}
-                  <a href="#" className="text-ruby-400 hover:underline">개인정보처리방침</a>에 동의합니다.
+                  <Link to="/terms" className="text-ruby-400 hover:underline">이용약관</Link> 및{' '}
+                  <Link to="/privacy" className="text-ruby-400 hover:underline">개인정보처리방침</Link>에 동의합니다.
                 </label>
               </div>
             </>

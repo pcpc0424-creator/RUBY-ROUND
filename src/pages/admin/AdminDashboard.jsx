@@ -135,7 +135,7 @@ export default function AdminDashboard() {
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
             {[
               { key: 'received', label: '접수완료', color: 'bg-blue-500' },
-              { key: 'cs_consulting', label: 'CS상담중', color: 'bg-cyan-500' },
+              { key: 'cs_consulting', label: '전문 상담사 확인중', color: 'bg-cyan-500' },
               { key: 'consultation_confirmed', label: '상담확정', color: 'bg-yellow-500' },
               { key: 'approved', label: '승인(차감)', color: 'bg-green-500' },
               { key: 'in_production', label: '제작중', color: 'bg-purple-500' },

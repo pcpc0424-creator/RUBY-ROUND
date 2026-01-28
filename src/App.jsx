@@ -23,6 +23,7 @@ import PaymentSuccess from './pages/PaymentSuccess';
 import PaymentFail from './pages/PaymentFail';
 import KakaoCallback from './pages/KakaoCallback';
 import GoogleCallback from './pages/GoogleCallback';
+import NiceCallback from './pages/NiceCallback';
 
 // Admin pages
 import AdminLayout from './components/admin/AdminLayout';
@@ -44,6 +45,7 @@ import CouponManagement from './pages/admin/CouponManagement';
 import AuditLog from './pages/admin/AuditLog';
 import SystemSettings from './pages/admin/SystemSettings';
 import ConsultationManagement from './pages/admin/ConsultationManagement';
+import SeasonPriceManagement from './pages/admin/SeasonPriceManagement';
 
 function App() {
   return (
@@ -53,6 +55,7 @@ function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/oauth" element={<KakaoCallback />} />
         <Route path="/oauth/google" element={<GoogleCallback />} />
+        <Route path="/auth/nice/callback" element={<NiceCallback />} />
 
         {/* Admin Routes */}
         <Route path="/admin/login" element={<AdminLogin />} />
@@ -62,6 +65,7 @@ function App() {
           <Route path="adult-verification" element={<AdultVerification />} />
           <Route path="payments" element={<PaymentManagement />} />
           <Route path="seasons" element={<SeasonManagement />} />
+          <Route path="season-pricing" element={<SeasonPriceManagement />} />
           <Route path="rounds" element={<RoundManagement />} />
           <Route path="round-results" element={<RoundResults />} />
           <Route path="ledger" element={<LedgerManagement />} />

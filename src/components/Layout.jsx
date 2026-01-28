@@ -3,6 +3,7 @@ import { useLocation } from 'react-router-dom';
 import NoticeBar from './NoticeBar';
 import Header from './Header';
 import Footer from './Footer';
+import SocialSidebar from './SocialSidebar';
 
 // 페이지 이동 시 스크롤 상단으로 이동
 function ScrollToTop() {
@@ -24,6 +25,7 @@ export default function Layout({ children }) {
       <main className="flex-1">
         {children}
       </main>
+      <SocialSidebar />
       <Footer />
     </div>
   );

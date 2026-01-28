@@ -31,7 +31,7 @@ export default function SystemSettings() {
     // RBAC 설정
     requireApprovalForExchange: true,
     requireApprovalForDelivery: true,
-    approvalRoles: ['ceo'],
+    approvalRoles: ['CEO'],
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -443,7 +443,7 @@ export default function SystemSettings() {
                   {Object.entries(ADMIN_ROLES).map(([key, role]) => (
                     <div key={key} className="bg-dark-700/50 rounded-xl p-4">
                       <div className="flex items-center gap-2 mb-2">
-                        <span className={`w-2 h-2 rounded-full ${key === 'ceo' ? 'bg-ruby-500' : 'bg-blue-500'}`}></span>
+                        <span className={`w-2 h-2 rounded-full ${key === 'CEO' ? 'bg-ruby-500' : 'bg-blue-500'}`}></span>
                         <span className="text-white font-medium">{role.label}</span>
                       </div>
                       <div className="flex flex-wrap gap-2">

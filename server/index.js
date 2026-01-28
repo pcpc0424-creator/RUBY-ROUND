@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const crypto = require('crypto');
 require('dotenv').config();
 
 const app = express();
@@ -16,8 +17,19 @@ const KAKAO_CLIENT_SECRET = 'pL6T6sC2Eem6Ml6p9CebKuGDVn05PwPt';
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '';
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || '';
 
+// NICE 본인확인 API 설정
+const NICE_CLIENT_ID = process.env.NICE_CLIENT_ID || '';
+const NICE_CLIENT_SECRET = process.env.NICE_CLIENT_SECRET || '';
+const NICE_PRODUCT_ID = process.env.NICE_PRODUCT_ID || '';
+const NICE_SIMULATION = process.env.NICE_SIMULATION === 'true';
+
+// NICE 인증 임시 저장소 (메모리)
+const niceRequestStore = new Map();  // requestNo -> { key, iv, hmacKey }
+const niceResultStore = new Map();   // resultToken -> { name, birthDate, gender, ci, di, isAdult }
+
 app.use(cors());
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 // 결제 승인 API
 app.post('/api/payments/confirm', async (req, res) => {
@@ -232,6 +244,390 @@ app.post('/api/auth/google', async (req, res) => {
       error: '서버 오류가 발생했습니다.'
     });
   }
+});
+
+// ========== NICE 본인인증 API ==========
+
+// 만 나이 계산 함수
+function calculateAge(birthDateStr) {
+  const birth = new Date(birthDateStr);
+  const today = new Date();
+  let age = today.getFullYear() - birth.getFullYear();
+  const monthDiff = today.getMonth() - birth.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+    age--;
+  }
+  return age;
+}
+
+// 이름 마스킹 (김루비 → 김*비)
+function maskName(name) {
+  if (!name || name.length <= 1) return name;
+  if (name.length === 2) return name[0] + '*';
+  return name[0] + '*'.repeat(name.length - 2) + name[name.length - 1];
+}
+
+// 생년월일 마스킹 (1990-01-15 → 1990.**.**)
+function maskBirthDate(birthDate) {
+  if (!birthDate) return '';
+  const parts = birthDate.split('-');
+  if (parts.length !== 3) return birthDate;
+  return `${parts[0]}.**.**`;
+}
+
+// POST /api/auth/nice/token - 암호화 토큰 요청
+app.post('/api/auth/nice/token', async (req, res) => {
+  try {
+    const requestNo = crypto.randomUUID();
+
+    if (NICE_SIMULATION) {
+      // 시뮬레이션 모드: 시뮬레이션 폼 URL 반환
+      const origin = req.headers.origin || req.headers.referer?.replace(/\/$/, '') || '';
+      const serverOrigin = `${req.protocol}://${req.get('host')}`;
+
+      niceRequestStore.set(requestNo, { simulation: true, createdAt: Date.now() });
+
+      // 5분 후 자동 삭제
+      setTimeout(() => niceRequestStore.delete(requestNo), 5 * 60 * 1000);
+
+      return res.json({
+        success: true,
+        data: {
+          requestNo,
+          simulation: true,
+          formUrl: `${serverOrigin}/api/auth/nice/simulate?requestNo=${requestNo}`,
+        },
+      });
+    }
+
+    // 실제 NICE API 연동
+    // 1. Access Token 발급
+    const authHeader = Buffer.from(`${NICE_CLIENT_ID}:${NICE_CLIENT_SECRET}`).toString('base64');
+    const tokenResponse = await fetch('https://svc.niceapi.co.kr:22001/digital/niceid/oauth/oauth/token', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Authorization': `Basic ${authHeader}`,
+      },
+      body: 'grant_type=client_credentials&scope=default',
+    });
+
+    const tokenData = await tokenResponse.json();
+    if (!tokenData.dataBody?.access_token) {
+      console.error('NICE 토큰 발급 실패:', tokenData);
+      return res.status(500).json({ success: false, error: 'NICE 토큰 발급에 실패했습니다.' });
+    }
+
+    const accessToken = tokenData.dataBody.access_token;
+
+    // 2. 암호화 토큰 요청
+    const currentTimestamp = Math.floor(Date.now() / 1000);
+    const cryptoResponse = await fetch('https://svc.niceapi.co.kr:22001/digital/niceid/api/v1.0/common/crypto/token', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `bearer ${accessToken}`,
+        'client_id': NICE_CLIENT_ID,
+        'productID': NICE_PRODUCT_ID,
+      },
+      body: JSON.stringify({
+        dataHeader: { CNTY_CD: 'ko' },
+        dataBody: {
+          req_dtim: new Date().toISOString().replace(/[-:T.Z]/g, '').slice(0, 14),
+          req_no: requestNo,
+          enc_mode: '1',
+        },
+      }),
+    });
+
+    const cryptoData = await cryptoResponse.json();
+    if (cryptoData.dataHeader?.GW_RSLT_CD !== '1200') {
+      console.error('NICE 암호화 토큰 실패:', cryptoData);
+      return res.status(500).json({ success: false, error: 'NICE 암호화 토큰 요청에 실패했습니다.' });
+    }
+
+    const { token_val, site_code, token_version_id } = cryptoData.dataBody;
+
+    // 3. 대칭키 생성
+    const reqDtim = new Date().toISOString().replace(/[-:T.Z]/g, '').slice(0, 14);
+    const value = `${reqDtim.trim()}${requestNo.trim()}${token_val.trim()}`;
+    const hmacSha256 = crypto.createHmac('sha256', token_val).update(value).digest('hex');
+
+    const key = hmacSha256.substring(0, 16);
+    const iv = hmacSha256.substring(hmacSha256.length - 16);
+    const hmacKey = hmacSha256.substring(0, 32);
+
+    // 대칭키 저장
+    niceRequestStore.set(requestNo, { key, iv, hmacKey, tokenVersionId: token_version_id, createdAt: Date.now() });
+    setTimeout(() => niceRequestStore.delete(requestNo), 5 * 60 * 1000);
+
+    // 4. 요청 데이터 암호화
+    const serverOrigin = `${req.protocol}://${req.get('host')}`;
+    const requestData = JSON.stringify({
+      requestno: requestNo,
+      returnurl: `${serverOrigin}/api/auth/nice/callback`,
+      sitecode: site_code,
+      authtype: 'M',
+      popupyn: 'Y',
+    });
+
+    const cipher = crypto.createCipheriv('aes-128-cbc', key, iv);
+    let encData = cipher.update(requestData, 'utf8', 'base64');
+    encData += cipher.final('base64');
+
+    const integrityValue = crypto.createHmac('sha256', hmacKey).update(encData).digest('base64');
+
+    return res.json({
+      success: true,
+      data: {
+        requestNo,
+        enc_data: encData,
+        token_version_id,
+        integrity_value: integrityValue,
+      },
+    });
+  } catch (error) {
+    console.error('NICE 토큰 요청 오류:', error);
+    res.status(500).json({ success: false, error: '본인인증 준비 중 오류가 발생했습니다.' });
+  }
+});
+
+// GET /api/auth/nice/simulate - 시뮬레이션 폼 (HTML)
+app.get('/api/auth/nice/simulate', (req, res) => {
+  if (!NICE_SIMULATION) {
+    return res.status(404).send('Not Found');
+  }
+
+  const { requestNo } = req.query;
+  if (!requestNo || !niceRequestStore.has(requestNo)) {
+    return res.status(400).send('유효하지 않은 요청입니다.');
+  }
+
+  res.send(`<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PASS 본인인증 (시뮬레이션)</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #1a1a2e; color: #fff; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+    .container { background: #16213e; border-radius: 16px; padding: 32px; max-width: 400px; width: 100%; margin: 16px; box-shadow: 0 8px 32px rgba(0,0,0,0.3); }
+    h2 { text-align: center; margin-bottom: 8px; color: #e94560; }
+    .subtitle { text-align: center; color: #888; font-size: 13px; margin-bottom: 24px; }
+    .badge { display: inline-block; background: #e94560; color: #fff; font-size: 11px; padding: 2px 8px; border-radius: 12px; margin-left: 8px; }
+    .form-group { margin-bottom: 16px; }
+    label { display: block; font-size: 13px; color: #aaa; margin-bottom: 6px; }
+    input { width: 100%; padding: 12px; background: #0f3460; border: 1px solid #333; border-radius: 8px; color: #fff; font-size: 15px; outline: none; }
+    input:focus { border-color: #e94560; }
+    .btn { width: 100%; padding: 14px; background: #e94560; border: none; border-radius: 8px; color: #fff; font-size: 16px; font-weight: 600; cursor: pointer; margin-top: 8px; }
+    .btn:hover { background: #c73e54; }
+    .btn:disabled { background: #555; cursor: not-allowed; }
+    .notice { font-size: 11px; color: #666; text-align: center; margin-top: 16px; line-height: 1.6; }
+    .error { color: #e94560; font-size: 13px; margin-top: 8px; display: none; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>PASS 본인인증 <span class="badge">시뮬레이션</span></h2>
+    <p class="subtitle">NICE 계약 전 테스트 모드입니다.</p>
+    <form id="simForm" action="/api/auth/nice/simulate" method="POST">
+      <input type="hidden" name="requestNo" value="${requestNo}" />
+      <div class="form-group">
+        <label>이름</label>
+        <input type="text" name="name" required placeholder="홍길동" />
+      </div>
+      <div class="form-group">
+        <label>생년월일</label>
+        <input type="date" name="birthDate" required />
+      </div>
+      <div class="form-group">
+        <label>휴대폰 번호</label>
+        <input type="tel" name="phone" required placeholder="010-1234-5678" />
+      </div>
+      <div class="form-group">
+        <label>성별</label>
+        <select name="gender" style="width:100%;padding:12px;background:#0f3460;border:1px solid #333;border-radius:8px;color:#fff;font-size:15px;">
+          <option value="M">남성</option>
+          <option value="F">여성</option>
+        </select>
+      </div>
+      <div id="error" class="error"></div>
+      <button type="submit" class="btn" id="submitBtn">본인인증 완료</button>
+    </form>
+    <p class="notice">
+      이 화면은 시뮬레이션 모드 전용입니다.<br/>
+      실제 NICE API 연동 시에는 PASS 앱 인증 화면이 표시됩니다.
+    </p>
+  </div>
+  <script>
+    document.getElementById('simForm').addEventListener('submit', function(e) {
+      var btn = document.getElementById('submitBtn');
+      btn.disabled = true;
+      btn.textContent = '처리 중...';
+    });
+  </script>
+</body>
+</html>`);
+});
+
+// POST /api/auth/nice/simulate - 시뮬레이션 인증 처리
+app.post('/api/auth/nice/simulate', (req, res) => {
+  if (!NICE_SIMULATION) {
+    return res.status(404).send('Not Found');
+  }
+
+  const { requestNo, name, birthDate, phone, gender } = req.body;
+
+  if (!requestNo || !niceRequestStore.has(requestNo)) {
+    return res.status(400).send('유효하지 않은 요청입니다.');
+  }
+
+  if (!name || !birthDate || !phone) {
+    return res.status(400).send('모든 필드를 입력해주세요.');
+  }
+
+  // 만 19세 확인
+  const age = calculateAge(birthDate);
+  const isAdult = age >= 19;
+
+  // 가짜 CI/DI 생성
+  const ci = crypto.createHash('sha256').update(`CI_${name}_${birthDate}_${phone}`).digest('hex');
+  const di = crypto.createHash('sha256').update(`DI_${name}_${birthDate}_${phone}_rubyround`).digest('hex');
+
+  // 결과 토큰 생성
+  const resultToken = crypto.randomUUID();
+  niceResultStore.set(resultToken, {
+    name,
+    birthDate,
+    phone,
+    gender: gender || 'M',
+    ci,
+    di,
+    isAdult,
+    age,
+    verifiedAt: new Date().toISOString(),
+  });
+
+  // 5분 후 자동 삭제
+  setTimeout(() => niceResultStore.delete(resultToken), 5 * 60 * 1000);
+
+  // 요청 데이터 정리
+  niceRequestStore.delete(requestNo);
+
+  // 프론트 콜백 페이지로 리다이렉트
+  const origin = req.headers.referer ? new URL(req.headers.referer).origin : '';
+  res.redirect(`${origin}/auth/nice/callback?token=${resultToken}`);
+});
+
+// POST /api/auth/nice/callback - NICE 실제 인증 결과 수신
+app.post('/api/auth/nice/callback', (req, res) => {
+  try {
+    const { enc_data, token_version_id, integrity_value } = req.body;
+
+    if (!enc_data) {
+      return res.status(400).send('인증 데이터가 없습니다.');
+    }
+
+    // requestNo로 저장된 키 찾기
+    let foundEntry = null;
+    let foundRequestNo = null;
+    for (const [reqNo, entry] of niceRequestStore.entries()) {
+      if (entry.tokenVersionId === token_version_id) {
+        foundEntry = entry;
+        foundRequestNo = reqNo;
+        break;
+      }
+    }
+
+    if (!foundEntry) {
+      return res.status(400).send('유효하지 않은 인증 요청입니다.');
+    }
+
+    const { key, iv, hmacKey } = foundEntry;
+
+    // 무결성 검증
+    const computedIntegrity = crypto.createHmac('sha256', hmacKey).update(enc_data).digest('base64');
+    if (computedIntegrity !== integrity_value) {
+      return res.status(400).send('데이터 무결성 검증에 실패했습니다.');
+    }
+
+    // AES 복호화
+    const decipher = crypto.createDecipheriv('aes-128-cbc', key, iv);
+    let decrypted = decipher.update(enc_data, 'base64', 'utf8');
+    decrypted += decipher.final('utf8');
+
+    const resultData = JSON.parse(decrypted);
+
+    // 결과 추출
+    const name = resultData.utf8_name || resultData.name || '';
+    const birthDate = resultData.birthdate ?
+      `${resultData.birthdate.substring(0, 4)}-${resultData.birthdate.substring(4, 6)}-${resultData.birthdate.substring(6, 8)}` :
+      '';
+    const gender = resultData.gender === '1' ? 'M' : 'F';
+    const ci = resultData.ci || '';
+    const di = resultData.di || '';
+    const phone = resultData.mobileno || '';
+
+    const age = calculateAge(birthDate);
+    const isAdult = age >= 19;
+
+    // 결과 토큰 생성
+    const resultToken = crypto.randomUUID();
+    niceResultStore.set(resultToken, {
+      name,
+      birthDate,
+      phone,
+      gender,
+      ci,
+      di,
+      isAdult,
+      age,
+      verifiedAt: new Date().toISOString(),
+    });
+
+    setTimeout(() => niceResultStore.delete(resultToken), 5 * 60 * 1000);
+    niceRequestStore.delete(foundRequestNo);
+
+    // 프론트 콜백 페이지로 리다이렉트
+    const origin = req.headers.origin || (req.headers.referer ? new URL(req.headers.referer).origin : '');
+    res.send(`<!DOCTYPE html><html><body><script>
+      window.location.href = '${origin}/auth/nice/callback?token=${resultToken}';
+    </script></body></html>`);
+  } catch (error) {
+    console.error('NICE 콜백 처리 오류:', error);
+    res.status(500).send('인증 결과 처리 중 오류가 발생했습니다.');
+  }
+});
+
+// GET /api/auth/nice/result/:token - 인증 결과 조회
+app.get('/api/auth/nice/result/:token', (req, res) => {
+  const { token } = req.params;
+
+  if (!token || !niceResultStore.has(token)) {
+    return res.status(404).json({ success: false, error: '인증 결과를 찾을 수 없거나 만료되었습니다.' });
+  }
+
+  const result = niceResultStore.get(token);
+
+  // 1회 조회 후 삭제 (보안)
+  niceResultStore.delete(token);
+
+  res.json({
+    success: true,
+    data: {
+      name: result.name,
+      maskedName: maskName(result.name),
+      birthDate: result.birthDate,
+      maskedBirthDate: maskBirthDate(result.birthDate),
+      gender: result.gender,
+      ci: result.ci,
+      di: result.di,
+      isAdult: result.isAdult,
+      age: result.age,
+      verifiedAt: result.verifiedAt,
+    },
+  });
 });
 
 // 헬스 체크

@@ -41,7 +41,7 @@ export default function ExchangeComplete({ application, onViewHistory, onNewAppl
           <div>
             <p className="text-blue-400 font-medium mb-1">교환금 미차감 상태</p>
             <p className="text-gray-400 text-sm">
-              CS 상담으로 최종 구성/금액 확정 후 대표 승인 시 교환금이 차감되고 제작이 시작됩니다.
+              전문 상담사 확인으로 최종 구성/금액 확정 후 내부 승인 시 교환금이 차감되고 제작이 시작됩니다.
             </p>
           </div>
         </div>
@@ -136,7 +136,7 @@ export default function ExchangeComplete({ application, onViewHistory, onNewAppl
               1
             </div>
             <div>
-              <p className="text-gray-300 text-sm">CS 담당자가 접수 내용을 확인합니다.</p>
+              <p className="text-gray-300 text-sm">전문 상담사가 접수 내용을 확인합니다.</p>
             </div>
           </div>
           <div className="flex items-start gap-3">
@@ -152,7 +152,7 @@ export default function ExchangeComplete({ application, onViewHistory, onNewAppl
               3
             </div>
             <div>
-              <p className="text-gray-300 text-sm">대표 승인 시 교환금이 차감되고 제작이 시작됩니다.</p>
+              <p className="text-gray-300 text-sm">내부 승인 시 교환금이 차감되고 제작이 시작됩니다.</p>
             </div>
           </div>
         </div>

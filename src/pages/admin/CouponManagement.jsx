@@ -182,7 +182,7 @@ export default function CouponManagement() {
   };
 
   const getStatusBadge = (status) => {
-    const statusInfo = COUPON_STATUS[status] || { label: status, color: 'gray' };
+    const statusInfo = Object.values(COUPON_STATUS).find(s => s.key === status) || { label: status, color: 'gray' };
     const colorMap = {
       green: 'bg-green-500/20 text-green-400',
       gray: 'bg-gray-500/20 text-gray-400',
@@ -197,7 +197,7 @@ export default function CouponManagement() {
   };
 
   const getTypeBadge = (type) => {
-    const typeInfo = COUPON_TYPE[type] || { label: type };
+    const typeInfo = Object.values(COUPON_TYPE).find(s => s.key === type) || { label: type };
     const colorMap = {
       percentage: 'bg-purple-500/20 text-purple-400',
       fixed: 'bg-blue-500/20 text-blue-400',
@@ -283,7 +283,7 @@ export default function CouponManagement() {
             >
               <option value="">전체</option>
               {Object.entries(COUPON_STATUS).map(([key, val]) => (
-                <option key={key} value={key}>{val.label}</option>
+                <option key={key} value={val.key}>{val.label}</option>
               ))}
             </select>
           </div>
@@ -296,7 +296,7 @@ export default function CouponManagement() {
             >
               <option value="">전체</option>
               {Object.entries(COUPON_TYPE).map(([key, val]) => (
-                <option key={key} value={key}>{val.label}</option>
+                <option key={key} value={val.key}>{val.label}</option>
               ))}
             </select>
           </div>
@@ -561,7 +561,7 @@ export default function CouponManagement() {
                         className="w-full px-4 py-3 bg-dark-700 border border-dark-600 rounded-lg text-white focus:border-ruby-500 focus:outline-none"
                       >
                         {Object.entries(COUPON_TYPE).map(([key, val]) => (
-                          <option key={key} value={key}>{val.label}</option>
+                          <option key={key} value={val.key}>{val.label}</option>
                         ))}
                       </select>
                     </div>

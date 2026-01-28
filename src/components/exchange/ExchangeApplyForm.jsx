@@ -93,8 +93,6 @@ export default function ExchangeApplyForm({ onComplete, onCancel }) {
       } else {
         setCustomSpecInput((prev) => ({ ...prev, [specKey]: false }));
       }
-    } else if (name === 'customSpec_') {
-      // 직접입력 값 처리는 별도로
     } else {
       setFormData((prev) => ({
         ...prev,
@@ -258,7 +256,7 @@ export default function ExchangeApplyForm({ onComplete, onCancel }) {
       <div className="bg-ruby-600/10 border border-ruby-600/30 rounded-lg p-4">
         <p className="text-ruby-400 text-sm">
           본 신청은 <strong>'상담 접수'</strong>이며 제출 시 교환금은 차감되지 않습니다.
-          CS 상담으로 최종 내용 확정 후 대표 승인 시 교환금이 차감되고 제작이 시작됩니다.
+          전문 상담사 확인으로 최종 내용 확정 후 내부 승인 시 교환금이 차감되고 제작이 시작됩니다.
         </p>
       </div>
 
@@ -477,7 +475,7 @@ export default function ExchangeApplyForm({ onComplete, onCancel }) {
         </button>
 
         <p className="text-center text-sm text-gray-500">
-          접수 시 차감 없음 / 대표 승인 시 차감
+          접수 시 차감 없음 / 내부 승인 시 차감
         </p>
 
         {onCancel && (

@@ -5,8 +5,8 @@ export default function AdminHeader({ onMenuClick }) {
   const navigate = useNavigate();
   const auth = getAdminAuth();
 
-  const handleLogout = () => {
-    adminLogout();
+  const handleLogout = async () => {
+    await adminLogout();
     navigate('/admin/login');
   };
 

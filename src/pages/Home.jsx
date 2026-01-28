@@ -386,8 +386,8 @@ function TierGuide() {
 function ExchangeGuide() {
   const processSteps = [
     { step: 1, title: '고객 교환 신청', description: '마이페이지 > 상품 교환 신청하기에서 신청' },
-    { step: 2, title: '1차 CS 확인', description: 'CS가 신청 내용을 확인하고, 필요 시 상담을 진행합니다.' },
-    { step: 3, title: '2차 대표 승인', description: '대표 승인 완료 시 주문이 확정됩니다.' },
+    { step: 2, title: '1차 전문 상담사 확인', description: '전문 상담사가 신청 내용을 확인하고, 필요 시 상담을 진행합니다.' },
+    { step: 3, title: '2차 승인', description: '내부 승인 완료 시 주문이 확정됩니다.' },
     { step: 4, title: '제작/출고/배송', description: '제작 또는 출고가 진행됩니다.' },
   ];
 
@@ -472,7 +472,7 @@ function ExchangeGuide() {
             <div>
               <h4 className="text-base sm:text-lg font-semibold mb-2 text-red-400">취소/변경 규정(중요)</h4>
               <p className="text-gray-300 text-sm sm:text-base">
-                주문제작/구성 확정 후에는 제작이 시작될 수 있으므로, <strong className="text-white">취소/변경은 '대표 승인 전'까지만 가능</strong>합니다.
+                주문제작/구성 확정 후에는 제작이 시작될 수 있으므로, <strong className="text-white">취소/변경은 '내부 승인 전'까지만 가능</strong>합니다.
               </p>
             </div>
           </div>

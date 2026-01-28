@@ -54,7 +54,7 @@ export default function Contact() {
                 </div>
                 <h3 className="font-bold">전화 문의</h3>
               </div>
-              <p className="text-gray-400 text-sm">1588-0000</p>
+              <p className="text-gray-400 text-sm">1551-7827</p>
               <p className="text-gray-500 text-xs mt-1">평일 09:00 ~ 18:00</p>
             </div>
 
@@ -71,19 +71,6 @@ export default function Contact() {
               <p className="text-gray-500 text-xs mt-1">24시간 접수 가능</p>
             </div>
 
-            <div className="card p-4 sm:p-5 hover-glow animate-fade-in-up opacity-0" style={{ animationDelay: '0.5s', animationFillMode: 'forwards' }}>
-              <div className="flex items-center gap-3 mb-3">
-                <div className="p-2 bg-ruby-600/20 rounded-lg text-ruby-400">
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                  </svg>
-                </div>
-                <h3 className="font-bold">오시는 길</h3>
-              </div>
-              <p className="text-gray-400 text-sm">서울특별시 강남구</p>
-              <p className="text-gray-500 text-xs mt-1">테헤란로 123, 루비타워 5층</p>
-            </div>
           </div>
 
           {/* Contact Form */}

@@ -54,7 +54,7 @@ export default function AuditLog() {
   };
 
   const getActionBadge = (action) => {
-    const actionInfo = AUDIT_ACTION_TYPE[action] || { label: action, color: 'gray' };
+    const actionInfo = Object.values(AUDIT_ACTION_TYPE).find(s => s.key === action) || { label: action, color: 'gray' };
     const colorMap = {
       blue: 'bg-blue-500/20 text-blue-400',
       green: 'bg-green-500/20 text-green-400',
@@ -72,7 +72,7 @@ export default function AuditLog() {
   };
 
   const getTargetTypeBadge = (targetType) => {
-    const targetInfo = AUDIT_TARGET_TYPE[targetType] || { label: targetType };
+    const targetInfo = Object.values(AUDIT_TARGET_TYPE).find(s => s.key === targetType) || { label: targetType };
     return (
       <span className="px-2 py-1 text-xs rounded-full bg-dark-600 text-gray-300">
         {targetInfo.label}
@@ -84,8 +84,8 @@ export default function AuditLog() {
     const headers = ['일시', '액션', '대상 유형', '대상 ID', '관리자', '상세 내용', 'IP 주소'];
     const rows = logs.map((log) => [
       new Date(log.createdAt).toLocaleString('ko-KR'),
-      AUDIT_ACTION_TYPE[log.action]?.label || log.action,
-      AUDIT_TARGET_TYPE[log.targetType]?.label || log.targetType,
+      Object.values(AUDIT_ACTION_TYPE).find(s => s.key === log.action)?.label || log.action,
+      Object.values(AUDIT_TARGET_TYPE).find(s => s.key === log.targetType)?.label || log.targetType,
       log.targetId || '',
       log.adminName || '',
       log.details || '',
@@ -151,7 +151,7 @@ export default function AuditLog() {
             >
               <option value="">전체</option>
               {Object.entries(AUDIT_ACTION_TYPE).map(([key, val]) => (
-                <option key={key} value={key}>{val.label}</option>
+                <option key={key} value={val.key}>{val.label}</option>
               ))}
             </select>
           </div>
@@ -164,7 +164,7 @@ export default function AuditLog() {
             >
               <option value="">전체</option>
               {Object.entries(AUDIT_TARGET_TYPE).map(([key, val]) => (
-                <option key={key} value={key}>{val.label}</option>
+                <option key={key} value={val.key}>{val.label}</option>
               ))}
             </select>
           </div>

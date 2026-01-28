@@ -1,4 +1,6 @@
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { STORAGE_KEYS } from '../constants/exchangeConstants';
 
 // Floating Particles for background
 function FloatingGems() {
@@ -51,82 +53,130 @@ function SeasonOverview() {
   );
 }
 
+// Default fallback stages
+const defaultStages = [
+  {
+    round: 'Round 1',
+    title: '체험 라운드',
+    description: '무료 참여, 시즌 세계관과 보석 채굴 구조 체험',
+    status: 'completed',
+    price: '무료',
+    isFree: true,
+  },
+  {
+    round: 'Round 2',
+    title: '탐사 라운드',
+    description: '보석 탐사의 첫 단계, 기본 채굴 시작',
+    status: 'completed',
+    price: '유료라운드',
+    isFree: false,
+  },
+  {
+    round: 'Round 3',
+    title: '발굴 라운드',
+    description: '본격적인 보석 발굴, 중급 원석 접근',
+    status: 'current',
+    price: '유료라운드',
+    isFree: false,
+  },
+  {
+    round: 'Round 4',
+    title: 'Deep Cargo',
+    description: '더 깊은 화물 레이어 개봉, 보석 밀도 증가',
+    status: 'upcoming',
+    price: '유료라운드',
+    isFree: false,
+  },
+  {
+    round: 'Round 5',
+    title: 'Core Mining',
+    description: '핵심 채굴 구역 진입, 희귀 원석 확률 상승',
+    status: 'upcoming',
+    price: '유료라운드',
+    isFree: false,
+  },
+  {
+    round: 'Round 6',
+    title: 'Ruby Vein',
+    description: '루비 광맥 접근, 고급 원석 채굴',
+    status: 'upcoming',
+    price: '유료라운드',
+    isFree: false,
+  },
+  {
+    round: 'Round 7',
+    title: 'Final Extraction',
+    description: '최종 추출, 최고급 보석 확정',
+    status: 'upcoming',
+    price: '유료라운드',
+    isFree: false,
+  },
+  {
+    round: 'Round 8',
+    title: 'Premium Layer',
+    description: '프리미엄 레이어 진입, 특급 원석 채굴',
+    status: 'upcoming',
+    price: '유료라운드',
+    isFree: false,
+  },
+  {
+    round: 'Round 9',
+    title: 'Ultimate Discovery',
+    description: '궁극의 발견, 최종 보석 확정',
+    status: 'upcoming',
+    price: '유료라운드',
+    isFree: false,
+  },
+];
+
+const formatPrice = (price) => {
+  if (!price || price === 0) return '무료';
+  return '₩' + new Intl.NumberFormat('ko-KR').format(price);
+};
+
 // Season Progress Structure
 function SeasonStructure() {
-  const stages = [
-    {
-      round: 'Round 1',
-      title: '체험 라운드',
-      description: '무료 참여, 시즌 세계관과 보석 채굴 구조 체험',
-      status: 'completed',
-      price: '무료',
-      isFree: true,
-    },
-    {
-      round: 'Round 2',
-      title: '탐사 라운드',
-      description: '보석 탐사의 첫 단계, 기본 채굴 시작',
-      status: 'completed',
-      price: '유료라운드',
-      isFree: false,
-    },
-    {
-      round: 'Round 3',
-      title: '발굴 라운드',
-      description: '본격적인 보석 발굴, 중급 원석 접근',
-      status: 'current',
-      price: '유료라운드',
-      isFree: false,
-    },
-    {
-      round: 'Round 4',
-      title: 'Deep Cargo',
-      description: '더 깊은 화물 레이어 개봉, 보석 밀도 증가',
-      status: 'upcoming',
-      price: '유료라운드',
-      isFree: false,
-    },
-    {
-      round: 'Round 5',
-      title: 'Core Mining',
-      description: '핵심 채굴 구역 진입, 희귀 원석 확률 상승',
-      status: 'upcoming',
-      price: '유료라운드',
-      isFree: false,
-    },
-    {
-      round: 'Round 6',
-      title: 'Ruby Vein',
-      description: '루비 광맥 접근, 고급 원석 채굴',
-      status: 'upcoming',
-      price: '유료라운드',
-      isFree: false,
-    },
-    {
-      round: 'Round 7',
-      title: 'Final Extraction',
-      description: '최종 추출, 최고급 보석 확정',
-      status: 'upcoming',
-      price: '유료라운드',
-      isFree: false,
-    },
-    {
-      round: 'Round 8',
-      title: 'Premium Layer',
-      description: '프리미엄 레이어 진입, 특급 원석 채굴',
-      status: 'upcoming',
-      price: '유료라운드',
-      isFree: false,
-    },
-    {
-      round: 'Round 9',
-      title: 'Ultimate Discovery',
-      description: '궁극의 발견, 최종 보석 확정',
-      status: 'upcoming',
-      price: '유료라운드',
-      isFree: false,
-    },
-  ];
+  const [stages, setStages] = useState(defaultStages);
+
+  useEffect(() => {
+    try {
+      const seasonsData = localStorage.getItem(STORAGE_KEYS.SEASONS);
+      const roundsData = localStorage.getItem(STORAGE_KEYS.ROUNDS);
+
+      if (!seasonsData || !roundsData) return;
+
+      const seasons = JSON.parse(seasonsData);
+      const allRounds = JSON.parse(roundsData);
+
+      // Find the active season, or the first season
+      const activeSeason = seasons.find(s => s.status === 'active') || seasons[0];
+      if (!activeSeason) return;
+
+      const seasonRounds = allRounds.filter(r => r.seasonId === activeSeason.id);
+      if (seasonRounds.length === 0) return;
+
+      // Sort by round number
+      seasonRounds.sort((a, b) => {
+        const numA = parseInt(a.id.replace('R', ''));
+        const numB = parseInt(b.id.replace('R', ''));
+        return numA - numB;
+      });
+
+      // Map round data to stage format
+      const dynamicStages = seasonRounds.map(round => ({
+        round: round.number,
+        title: round.title,
+        description: round.description || '',
+        status: round.status === 'active' ? 'current' : round.status,
+        price: round.price === 0 ? '무료' : formatPrice(round.price),
+        isFree: round.price === 0,
+      }));
+
+      setStages(dynamicStages);
+    } catch {
+      // Fall back to default stages on error
+    }
+  }, []);
 
   return (
     <section className="py-12 sm:py-20 bg-dark-800/50 relative overflow-hidden">

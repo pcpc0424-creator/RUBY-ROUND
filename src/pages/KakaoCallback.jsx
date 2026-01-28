@@ -28,7 +28,7 @@ export default function KakaoCallback() {
       setError('인증 코드가 없습니다.');
       setTimeout(() => navigate('/login'), 2000);
     }
-  }, [searchParams]);
+  }, [searchParams, navigate]);
 
   const handleKakaoCallback = async (code) => {
     try {

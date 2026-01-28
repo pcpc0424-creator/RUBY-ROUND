@@ -91,7 +91,7 @@ export default function ExchangeDetail() {
     setActionLoading(false);
   };
 
-  // 대표 승인 (차감)
+  // 승인 (차감)
   const handleApprove = async () => {
     if (!window.confirm('승인하시겠습니까? 승인 시 교환금이 차감됩니다.')) return;
 
@@ -201,7 +201,7 @@ export default function ExchangeDetail() {
         } else {
           actions.push(
             <span key="waiting" className="px-4 py-2 bg-dark-600 text-gray-400 rounded-lg">
-              대표 승인 대기 중
+              내부 승인 대기 중
             </span>
           );
         }
@@ -424,7 +424,7 @@ export default function ExchangeDetail() {
         )}
 
         {/* 승인 정보 */}
-        {application.approvedAt && (
+        {application.approval?.approvedAt && (
           <div className="bg-green-600/10 border border-green-600/30 rounded-xl overflow-hidden">
             <div className="px-5 py-4 border-b border-green-600/30">
               <h3 className="font-semibold text-green-400">승인 정보</h3>
@@ -432,15 +432,15 @@ export default function ExchangeDetail() {
             <div className="p-5 space-y-4">
               <div>
                 <p className="text-gray-500 text-sm mb-1">승인일시</p>
-                <p className="text-white">{formatDate(application.approvedAt)}</p>
+                <p className="text-white">{formatDate(application.approval.approvedAt)}</p>
               </div>
               <div>
                 <p className="text-gray-500 text-sm mb-1">승인자</p>
-                <p className="text-gray-300">{application.approvedBy}</p>
+                <p className="text-gray-300">{application.approval.approvedBy}</p>
               </div>
               <div>
                 <p className="text-gray-500 text-sm mb-1">차감 금액</p>
-                <p className="text-green-400 font-semibold text-xl">{formatAmount(application.deductedAmount)}</p>
+                <p className="text-green-400 font-semibold text-xl">{formatAmount(application.approval.deductedAmount)}</p>
               </div>
             </div>
           </div>

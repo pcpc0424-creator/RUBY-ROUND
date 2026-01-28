@@ -26,7 +26,7 @@ export default function GoogleCallback() {
       setError('인증 코드가 없습니다.');
       setTimeout(() => navigate('/login'), 2000);
     }
-  }, [searchParams]);
+  }, [searchParams, navigate]);
 
   const handleGoogleCallback = async (code) => {
     try {

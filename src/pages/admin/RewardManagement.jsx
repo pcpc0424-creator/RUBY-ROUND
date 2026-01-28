@@ -21,7 +21,7 @@ export default function RewardManagement() {
   const [newReward, setNewReward] = useState({
     userId: '',
     userName: '',
-    type: 'cash',
+    type: 'ruby',
     amount: '',
     description: '',
     roundId: '',
@@ -99,7 +99,7 @@ export default function RewardManagement() {
         action: 'update',
         targetType: 'reward',
         targetId: selectedReward.id,
-        details: `보상 상태 변경: ${REWARD_STATUS[statusUpdate.status]?.label}`,
+        details: `보상 상태 변경: ${Object.values(REWARD_STATUS).find(s => s.key === statusUpdate.status)?.label || statusUpdate.status}`,
         adminName: auth?.name || 'Admin',
       });
       alert('상태가 변경되었습니다.');
@@ -184,7 +184,7 @@ export default function RewardManagement() {
   };
 
   const getStatusBadge = (status) => {
-    const statusInfo = REWARD_STATUS[status] || { label: status, color: 'gray' };
+    const statusInfo = Object.values(REWARD_STATUS).find(s => s.key === status) || { label: status, color: 'gray' };
     const colorMap = {
       yellow: 'bg-yellow-500/20 text-yellow-400',
       blue: 'bg-blue-500/20 text-blue-400',
@@ -200,7 +200,7 @@ export default function RewardManagement() {
   };
 
   const getTypeBadge = (type) => {
-    const typeInfo = REWARD_TYPE[type] || { label: type };
+    const typeInfo = Object.values(REWARD_TYPE).find(s => s.key === type) || { label: type };
     const colorMap = {
       cash: 'bg-green-500/20 text-green-400',
       product: 'bg-blue-500/20 text-blue-400',
@@ -268,7 +268,7 @@ export default function RewardManagement() {
             >
               <option value="">전체</option>
               {Object.entries(REWARD_STATUS).map(([key, val]) => (
-                <option key={key} value={key}>{val.label}</option>
+                <option key={key} value={val.key}>{val.label}</option>
               ))}
             </select>
           </div>
@@ -281,7 +281,7 @@ export default function RewardManagement() {
             >
               <option value="">전체</option>
               {Object.entries(REWARD_TYPE).map(([key, val]) => (
-                <option key={key} value={key}>{val.label}</option>
+                <option key={key} value={val.key}>{val.label}</option>
               ))}
             </select>
           </div>
@@ -513,7 +513,7 @@ export default function RewardManagement() {
                       className="w-full px-4 py-3 bg-dark-700 border border-dark-600 rounded-lg text-white focus:border-ruby-500 focus:outline-none"
                     >
                       {Object.entries(REWARD_TYPE).map(([key, val]) => (
-                        <option key={key} value={key}>{val.label}</option>
+                        <option key={key} value={val.key}>{val.label}</option>
                       ))}
                     </select>
                   </div>
@@ -568,7 +568,7 @@ export default function RewardManagement() {
                     >
                       <option value="">선택하세요</option>
                       {Object.entries(REWARD_STATUS).map(([key, val]) => (
-                        <option key={key} value={key}>{val.label}</option>
+                        <option key={key} value={val.key}>{val.label}</option>
                       ))}
                     </select>
                   </div>

@@ -11,11 +11,11 @@ export const EXCHANGE_STATUS = {
   },
   CS_CONSULTING: {
     key: 'cs_consulting',
-    label: 'CS상담중',
-    labelDetail: 'CS상담중(미차감)',
+    label: '전문 상담사 확인중',
+    labelDetail: '전문 상담사 확인중(미차감)',
     color: 'yellow',
     bgClass: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
-    description: 'CS 담당자가 상담을 진행 중입니다.',
+    description: '전문 상담사가 확인을 진행 중입니다.',
     canCancel: true,
   },
   CONSULTATION_CONFIRMED: {
@@ -24,16 +24,16 @@ export const EXCHANGE_STATUS = {
     labelDetail: '상담확정(미차감)',
     color: 'orange',
     bgClass: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
-    description: '상담이 완료되어 대표 승인을 대기 중입니다.',
+    description: '상담이 완료되어 내부 승인을 대기 중입니다.',
     canCancel: true,
   },
   APPROVED: {
     key: 'approved',
-    label: '대표승인',
+    label: '승인완료',
     labelDetail: '승인완료(차감됨)',
     color: 'green',
     bgClass: 'bg-green-500/20 text-green-400 border-green-500/30',
-    description: '대표 승인 완료. 교환금이 차감되고 제작이 시작됩니다.',
+    description: '내부 승인 완료. 교환금이 차감되고 제작이 시작됩니다.',
     canCancel: false,
   },
   IN_PRODUCTION: {
@@ -187,7 +187,7 @@ export const REQUIRED_AGREEMENTS = [
   {
     key: 'consultationProcess',
     title: '상담 접수 및 차감 시점 확인',
-    description: '본 신청은 \'상담 접수\'이며, 제출 시 교환금이 차감되지 않고 대표 승인 시 교환금이 차감됨을 확인합니다.',
+    description: '본 신청은 \'상담 접수\'이며, 제출 시 교환금이 차감되지 않고 내부 승인 시 교환금이 차감됨을 확인합니다.',
     required: true,
   },
   {
@@ -199,7 +199,7 @@ export const REQUIRED_AGREEMENTS = [
   {
     key: 'cancelRestriction',
     title: '취소/환불 제한 동의',
-    description: '대표 승인(제작 착수/발주 착수) 이후에는 주문제작 특성상 취소/환불이 제한됨에 동의합니다.',
+    description: '내부 승인(제작 착수/발주 착수) 이후에는 주문제작 특성상 취소/환불이 제한됨에 동의합니다.',
     required: true,
   },
   {
@@ -237,6 +237,8 @@ export const STORAGE_KEYS = {
   DELIVERIES: 'rubyround_deliveries',
   // 성인 인증
   ADULT_VERIFICATIONS: 'rubyround_adult_verifications',
+  // 본인인증 증빙 (CI/DI 등)
+  VERIFICATION_EVIDENCE: 'rubyround_verification_evidence',
   // 라운드 결과
   ROUND_RESULTS: 'rubyround_round_results',
   // 보상/당첨
@@ -326,6 +328,7 @@ export const ADULT_VERIFICATION_STATUS = {
 
 // 성인 인증 방법
 export const ADULT_VERIFICATION_METHODS = [
+  { key: 'pass', label: 'PASS 본인인증' },
   { key: 'phone', label: '휴대폰 본인인증' },
   { key: 'ipin', label: 'I-PIN 인증' },
   { key: 'card', label: '신용카드 인증' },
@@ -465,20 +468,20 @@ export const DEFAULT_CONSULTATION_MODAL_CONTENT = {
     {
       id: 2,
       icon: '💬',
-      title: 'CS 상담 진행',
-      description: 'CS 담당자가 연락드려 상세 내용을 확인하고 최종 사양을 협의합니다.',
+      title: '전문 상담사 확인',
+      description: '전문 상담사가 연락드려 상세 내용을 확인하고 최종 사양을 협의합니다.',
     },
     {
       id: 3,
       icon: '✅',
-      title: '대표 승인 후 차감',
-      description: '최종 확정 후 대표 승인 시 교환금이 차감되고 제작이 시작됩니다.',
+      title: '내부 승인 후 차감',
+      description: '내부 승인 완료 시 교환금이 차감되고 제작이 시작됩니다.',
     },
     {
       id: 4,
       icon: '⚠️',
       title: '취소 안내',
-      description: '대표 승인 전까지는 취소가 가능하지만, 승인 이후에는 취소가 불가합니다.',
+      description: '내부 승인 전까지는 취소가 가능하지만, 승인 이후에는 취소가 불가합니다.',
     },
   ],
   confirmButtonText: '확인하고 접수하기',
