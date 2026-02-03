@@ -67,9 +67,13 @@ export default function RoundManagement() {
     setRounds(seasonRounds);
   };
 
-  const getPaymentStats = (roundId) => {
+  const getPaymentStats = (roundId, seasonId) => {
     const payments = getFromStorage(STORAGE_KEYS.ROUND_PAYMENTS, []);
-    const roundPayments = payments.filter(p => p.roundId === roundId && p.status === 'success');
+    const roundPayments = payments.filter(p =>
+      p.roundId === roundId &&
+      p.seasonId === seasonId &&
+      p.status === 'success'
+    );
     return {
       count: roundPayments.length,
       total: roundPayments.reduce((sum, p) => sum + p.amount, 0),
@@ -214,7 +218,7 @@ export default function RoundManagement() {
           {/* 모바일 카드 레이아웃 */}
           <div className="sm:hidden space-y-3">
             {rounds.map((round) => {
-              const stats = getPaymentStats(round.id);
+              const stats = getPaymentStats(round.id, round.seasonId);
               return (
                 <div
                   key={round.id}
@@ -233,11 +237,13 @@ export default function RoundManagement() {
                       {round.price === 0 ? '무료' : formatAmount(round.price)}
                     </span>
                   </div>
-                  <div className="flex items-center justify-between text-sm mb-4">
-                    <span className="text-gray-500">참여자</span>
-                    <span className="text-white">{stats.count}명 ({formatAmount(stats.total)})</span>
-                  </div>
-                  <div className="flex gap-2">
+                  {stats.count > 0 && (
+                    <div className="flex items-center justify-between text-sm mb-3">
+                      <span className="text-gray-500">참여자/매출</span>
+                      <span className="text-white">{stats.count}명 ({formatAmount(stats.total)})</span>
+                    </div>
+                  )}
+                  <div className="flex gap-2 mt-3">
                     <button
                       onClick={() => handleEditRound(round)}
                       className="flex-1 py-2 bg-dark-700 hover:bg-dark-600 text-gray-300 rounded-lg text-sm"
@@ -276,7 +282,7 @@ export default function RoundManagement() {
                 </thead>
                 <tbody className="divide-y divide-dark-700">
                   {rounds.map((round) => {
-                    const stats = getPaymentStats(round.id);
+                    const stats = getPaymentStats(round.id, round.seasonId);
                     return (
                       <tr key={round.id} className="hover:bg-dark-700/50 transition-colors">
                         <td className="px-4 py-4">
@@ -294,10 +300,14 @@ export default function RoundManagement() {
                           {getStatusBadge(round.status)}
                         </td>
                         <td className="px-4 py-4 text-right">
-                          <span className="text-white">{stats.count}명</span>
+                          <span className={stats.count > 0 ? 'text-white' : 'text-gray-600'}>
+                            {stats.count > 0 ? `${stats.count}명` : '-'}
+                          </span>
                         </td>
                         <td className="px-4 py-4 text-right">
-                          <span className="text-ruby-400">{formatAmount(stats.total)}</span>
+                          <span className={stats.count > 0 ? 'text-ruby-400' : 'text-gray-600'}>
+                            {stats.count > 0 ? formatAmount(stats.total) : '-'}
+                          </span>
                         </td>
                         <td className="px-4 py-4">
                           <div className="flex items-center justify-center gap-2">

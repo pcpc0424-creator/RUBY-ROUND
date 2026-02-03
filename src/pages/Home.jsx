@@ -1,4 +1,6 @@
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { STORAGE_KEYS } from '../constants/exchangeConstants';
 
 // Floating Ruby Particles Component
 function FloatingParticles() {
@@ -30,6 +32,24 @@ function FloatingParticles() {
 
 // Hero Section
 function HeroSection() {
+  const [activeSeason, setActiveSeason] = useState(null);
+
+  useEffect(() => {
+    try {
+      const seasonsData = localStorage.getItem(STORAGE_KEYS.SEASONS);
+      if (seasonsData) {
+        const seasons = JSON.parse(seasonsData);
+        const active = seasons.find(s => s.status === 'active') || seasons[0];
+        setActiveSeason(active);
+      }
+    } catch {
+      // Use default if error
+    }
+  }, []);
+
+  const seasonName = activeSeason?.name || 'Season 01';
+  const isActive = activeSeason?.status === 'active';
+
   return (
     <section className="relative min-h-[70vh] sm:min-h-[90vh] flex items-center overflow-hidden">
       {/* Animated background effects */}
@@ -46,10 +66,12 @@ function HeroSection() {
           {/* Season badge with pulse ring */}
           <div className="relative inline-flex items-center gap-2 px-3 py-1.5 sm:px-4 sm:py-2 bg-ruby-600/10 border border-ruby-600/30 rounded-full mb-4 sm:mb-8 animate-fade-in-down glass">
             <span className="relative flex h-2 w-2">
-              <span className="absolute inline-flex h-full w-full rounded-full bg-ruby-400 opacity-75 animate-ping" />
-              <span className="relative inline-flex h-2 w-2 rounded-full bg-ruby-500" />
+              <span className={`absolute inline-flex h-full w-full rounded-full ${isActive ? 'bg-ruby-400 animate-ping' : 'bg-gray-400'} opacity-75`} />
+              <span className={`relative inline-flex h-2 w-2 rounded-full ${isActive ? 'bg-ruby-500' : 'bg-gray-500'}`} />
             </span>
-            <span className="text-ruby-400 text-xs sm:text-sm font-medium">Season 01 진행 중</span>
+            <span className={`text-xs sm:text-sm font-medium ${isActive ? 'text-ruby-400' : 'text-gray-400'}`}>
+              {seasonName} {isActive ? '진행 중' : ''}
+            </span>
           </div>
 
           {/* Main heading with staggered animation */}

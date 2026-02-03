@@ -12,6 +12,7 @@ const TOSS_SECRET_KEY = 'live_gsk_EP59LybZ8Bp4XzPjXxzkV6GYo7pR';
 // 카카오 REST API 키
 const KAKAO_REST_API_KEY = '3dd43ca76776af78ace98fbea2cd032c';
 const KAKAO_CLIENT_SECRET = 'pL6T6sC2Eem6Ml6p9CebKuGDVn05PwPt';
+const KAKAO_CHANNEL_PUBLIC_ID = '_xiJqhX';
 
 // 구글 OAuth 설정 (환경변수에서 로드)
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '';
@@ -137,7 +138,7 @@ app.post('/api/auth/kakao', async (req, res) => {
       });
     }
 
-    // 3. 사용자 정보 추출
+    // 3. 사용자 정보 추출 (추가 동의 항목 포함)
     const kakaoAccount = userData.kakao_account || {};
     const profile = kakaoAccount.profile || {};
 
@@ -147,9 +148,25 @@ app.post('/api/auth/kakao', async (req, res) => {
       name: profile.nickname || '카카오 사용자',
       profileImage: profile.profile_image_url || '',
       accessToken: tokenData.access_token,
+      // 추가 동의 항목
+      phoneNumber: kakaoAccount.phone_number || '',
+      birthday: kakaoAccount.birthday || '', // MMDD 형식
+      birthyear: kakaoAccount.birthyear || '', // YYYY 형식
+      gender: kakaoAccount.gender || '', // male/female
+      // 동의 여부 확인
+      hasPhoneNumber: kakaoAccount.has_phone_number || false,
+      hasBirthday: kakaoAccount.has_birthday || false,
+      hasBirthyear: kakaoAccount.has_birthyear || false,
+      hasGender: kakaoAccount.has_gender || false,
     };
 
     console.log('카카오 로그인 성공:', userInfo.email);
+    console.log('추가 정보:', {
+      phoneNumber: userInfo.phoneNumber ? '있음' : '없음',
+      birthday: userInfo.birthday,
+      birthyear: userInfo.birthyear,
+      gender: userInfo.gender
+    });
 
     res.json({
       success: true,
@@ -162,6 +179,61 @@ app.post('/api/auth/kakao', async (req, res) => {
       success: false,
       error: '서버 오류가 발생했습니다.'
     });
+  }
+});
+
+// 카카오톡 메시지 발송 API (가입 환영 메시지)
+app.post('/api/auth/kakao/send-welcome-message', async (req, res) => {
+  const { accessToken, userName, isNewUser } = req.body;
+
+  // 신규 가입자에게만 메시지 발송
+  if (!isNewUser) {
+    return res.json({ success: true, message: '기존 사용자 - 메시지 발송 생략' });
+  }
+
+  if (!accessToken) {
+    return res.status(400).json({
+      success: false,
+      error: '액세스 토큰이 필요합니다.'
+    });
+  }
+
+  try {
+    // 카카오톡 나에게 보내기 API 호출
+    const messageResponse = await fetch('https://kapi.kakao.com/v2/api/talk/memo/default/send', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: new URLSearchParams({
+        template_object: JSON.stringify({
+          object_type: 'text',
+          text: `🎉 ${userName}님, 루비라운드 가입을 환영합니다!\n\n루비라운드에서 특별한 보석 교환 서비스를 경험해보세요.\n\n💎 다양한 루비 컬렉션\n🔄 안전한 교환 서비스\n📞 친절한 고객 상담\n\n궁금한 점이 있으시면 언제든 문의해주세요!`,
+          link: {
+            web_url: 'https://rubyround.net',
+            mobile_web_url: 'https://rubyround.net',
+          },
+          button_title: '루비라운드 바로가기',
+        }),
+      }),
+    });
+
+    const messageResult = await messageResponse.json();
+
+    if (messageResult.result_code === 0) {
+      console.log('카카오톡 환영 메시지 발송 성공:', userName);
+      res.json({ success: true, message: '환영 메시지가 발송되었습니다.' });
+    } else {
+      console.log('카카오톡 메시지 발송 실패:', messageResult);
+      // 메시지 발송 실패해도 가입은 성공 처리
+      res.json({ success: true, message: '메시지 발송 실패 (권한 없음)', error: messageResult });
+    }
+
+  } catch (error) {
+    console.error('카카오톡 메시지 발송 오류:', error);
+    // 메시지 발송 실패해도 가입은 성공 처리
+    res.json({ success: true, message: '메시지 발송 오류', error: error.message });
   }
 });
 

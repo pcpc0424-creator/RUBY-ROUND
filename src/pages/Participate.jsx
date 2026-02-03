@@ -142,8 +142,8 @@ export default function Participate() {
                   <span className={`px-2 sm:px-3 py-1 rounded-full text-xs font-medium border ${getStatusStyle(round.status)}`}>
                     {getStatusText(round.status)}
                   </span>
-                  <span className="font-bold text-sm sm:text-base">
-                    {round.price === 0 ? '무료' : `${round.price.toLocaleString()}원`}
+                  <span className={`font-bold text-sm sm:text-base ${round.status !== 'active' ? 'text-gray-500' : ''}`}>
+                    {round.status === 'active' ? (round.price === 0 ? '무료' : `${round.price.toLocaleString()}원`) : '-'}
                   </span>
                 </div>
               </div>

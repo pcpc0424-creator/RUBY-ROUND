@@ -605,12 +605,25 @@ export const registerOrGetSocialUser = async (userData) => {
     if (userData.profileImage) {
       existingUser.profileImage = userData.profileImage;
     }
+    // 추가 동의 항목 업데이트 (기존 값이 없을 때만)
+    if (userData.phoneNumber && !existingUser.phoneNumber) {
+      existingUser.phoneNumber = userData.phoneNumber;
+    }
+    if (userData.birthday && !existingUser.birthday) {
+      existingUser.birthday = userData.birthday;
+    }
+    if (userData.birthyear && !existingUser.birthyear) {
+      existingUser.birthyear = userData.birthyear;
+    }
+    if (userData.gender && !existingUser.gender) {
+      existingUser.gender = userData.gender;
+    }
     existingUser.updatedAt = new Date().toISOString();
     saveToStorage(STORAGE_KEYS.USERS, users);
     return { success: true, data: existingUser, isNewUser: false };
   }
 
-  // 새 사용자 등록
+  // 새 사용자 등록 (추가 동의 항목 포함)
   const newUser = {
     id: generateId('USR'),
     name: userData.name,
@@ -619,6 +632,11 @@ export const registerOrGetSocialUser = async (userData) => {
     profileImage: userData.profileImage || '',
     loginProvider: userData.loginProvider, // 'kakao' or 'google'
     socialId: userData.socialId, // 카카오/구글 ID
+    // 카카오 추가 동의 항목
+    phoneNumber: userData.phoneNumber || '', // 전화번호 (+82 10-xxxx-xxxx 형식)
+    birthday: userData.birthday || '', // MMDD 형식
+    birthyear: userData.birthyear || '', // YYYY 형식
+    gender: userData.gender || '', // male/female
     status: 'active',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),

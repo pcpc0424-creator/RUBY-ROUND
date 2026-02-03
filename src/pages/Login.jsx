@@ -5,6 +5,7 @@ import { registerUser, loginUser, checkAdultVerification, completePassVerificati
 // 카카오 설정
 const KAKAO_JS_KEY = '8bfa8dcca7350d0d0b9b866bcaea6f89';
 const KAKAO_REST_API_KEY = '3dd43ca76776af78ace98fbea2cd032c';
+const KAKAO_CHANNEL_PUBLIC_ID = '_xiJqhX';
 
 // 구글 설정
 const GOOGLE_CLIENT_ID = '719952954585-c1a0qjdfk2jo7ml11pou2ept5coc55r6.apps.googleusercontent.com';
@@ -145,15 +146,22 @@ export default function Login() {
     }
   }, []);
 
-  // 카카오 로그인 핸들러
+  // 카카오 로그인 핸들러 (카카오 싱크 + 추가 동의 항목)
   const handleKakaoLogin = () => {
     if (!window.Kakao?.isInitialized()) {
       window.Kakao?.init(KAKAO_JS_KEY);
     }
 
     // 카카오 SDK 2.x 버전 - authorize 사용
+    // 카카오 싱크: 채널 추가 + 추가 동의 항목 + 메시지 발송 권한
     window.Kakao.Auth.authorize({
       redirectUri: window.location.origin + '/oauth',
+      // 추가 동의 항목: 전화번호, 생년월일, 성별, 카카오톡 메시지
+      scope: 'phone_number,birthday,birthyear,gender,talk_message',
+      // 카카오 싱크: 채널 추가 동의
+      channelPublicIds: KAKAO_CHANNEL_PUBLIC_ID,
+      // 서비스 약관 동의 (카카오 싱크)
+      serviceTerms: 'channel_add',
     });
   };
 

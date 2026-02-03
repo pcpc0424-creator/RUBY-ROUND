@@ -34,6 +34,7 @@ import ExchangeDetail from './pages/admin/ExchangeDetail';
 import UserManagement from './pages/admin/UserManagement';
 import SeasonSettlement from './pages/admin/SeasonSettlement';
 import SeasonManagement from './pages/admin/SeasonManagement';
+import SeasonDetail from './pages/admin/SeasonDetail';
 import RoundManagement from './pages/admin/RoundManagement';
 import PaymentManagement from './pages/admin/PaymentManagement';
 import DeliveryManagement from './pages/admin/DeliveryManagement';
@@ -65,6 +66,7 @@ function App() {
           <Route path="adult-verification" element={<AdultVerification />} />
           <Route path="payments" element={<PaymentManagement />} />
           <Route path="seasons" element={<SeasonManagement />} />
+          <Route path="seasons/:seasonId" element={<SeasonDetail />} />
           <Route path="season-pricing" element={<SeasonPriceManagement />} />
           <Route path="rounds" element={<RoundManagement />} />
           <Route path="round-results" element={<RoundResults />} />

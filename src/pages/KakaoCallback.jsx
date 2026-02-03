@@ -57,13 +57,18 @@ export default function KakaoCallback() {
 
       const userInfo = result.data;
 
-      // 사용자 등록/조회
+      // 사용자 등록/조회 (추가 동의 항목 포함)
       const registerResult = await registerOrGetSocialUser({
         name: userInfo.name,
         email: userInfo.email,
         profileImage: userInfo.profileImage || '',
         loginProvider: 'kakao',
         socialId: userInfo.kakaoId,
+        // 추가 동의 항목
+        phoneNumber: userInfo.phoneNumber || '',
+        birthday: userInfo.birthday || '',
+        birthyear: userInfo.birthyear || '',
+        gender: userInfo.gender || '',
       });
 
       if (!registerResult.success) {
@@ -77,6 +82,23 @@ export default function KakaoCallback() {
       localStorage.setItem('userProfileImage', registerResult.data.profileImage || '');
       localStorage.setItem('loginProvider', 'kakao');
       localStorage.setItem('kakaoAccessToken', userInfo.accessToken);
+
+      // 신규 가입자에게 카카오톡 환영 메시지 발송
+      if (registerResult.isNewUser) {
+        try {
+          await fetch('/api/auth/kakao/send-welcome-message', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              accessToken: userInfo.accessToken,
+              userName: userInfo.name,
+              isNewUser: true,
+            }),
+          });
+        } catch (msgErr) {
+          console.log('환영 메시지 발송 실패 (무시됨):', msgErr);
+        }
+      }
 
       setStatus('success');
       setTimeout(() => navigate('/'), 1000);

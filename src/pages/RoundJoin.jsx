@@ -1,7 +1,21 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
+import { STORAGE_KEYS } from '../constants/exchangeConstants';
 
-const CURRENT_SEASON_ID = 'SEASON-1';
+// Helper to get active season ID
+const getActiveSeasonId = () => {
+  try {
+    const seasonsData = localStorage.getItem(STORAGE_KEYS.SEASONS);
+    if (seasonsData) {
+      const seasons = JSON.parse(seasonsData);
+      const active = seasons.find(s => s.status === 'active') || seasons[0];
+      return active?.id || 'SEASON-1';
+    }
+  } catch {
+    // fallback
+  }
+  return 'SEASON-1';
+};
 
 const roundsData = [
   {
@@ -11,7 +25,7 @@ const roundsData = [
     price: 0,
     status: 'completed',
     participants: 1250,
-    seasonId: CURRENT_SEASON_ID,
+    seasonId: getActiveSeasonId(),
     description: '무료 체험 라운드 - 실물 보상은 제공되지 않으며 시즌 누적 정보로만 반영됩니다.',
     details: '시즌의 세계관과 보석 채굴 구조를 체험해보세요. 무료로 참여할 수 있으며, 시즌 참여 경험을 쌓을 수 있습니다.',
     benefits: [
@@ -27,7 +41,7 @@ const roundsData = [
     price: 500000,
     status: 'completed',
     participants: 890,
-    seasonId: CURRENT_SEASON_ID,
+    seasonId: getActiveSeasonId(),
     description: '참여비는 루비 보석 악세사리 구매를 위한 예약금입니다.',
     details: '보석 탐사의 첫 단계입니다. 기본 채굴이 시작되며, 초급 원석에 접근할 수 있습니다.',
     benefits: [
@@ -43,7 +57,7 @@ const roundsData = [
     price: 1000000,
     status: 'active',
     participants: 567,
-    seasonId: CURRENT_SEASON_ID,
+    seasonId: getActiveSeasonId(),
     description: '참여비는 루비 보석 악세사리 구매를 위한 예약금입니다.',
     details: '본격적인 보석 발굴 단계입니다. 중급 원석에 접근하며, 보석의 품질이 향상됩니다.',
     benefits: [
@@ -60,7 +74,7 @@ const roundsData = [
     price: 1800000,
     status: 'upcoming',
     participants: 0,
-    seasonId: CURRENT_SEASON_ID,
+    seasonId: getActiveSeasonId(),
     description: '참여비는 루비 보석 악세사리 구매를 위한 예약금입니다.',
     details: '더 깊은 화물 레이어를 개봉합니다. 보석의 크기와 밀도가 이전 라운드보다 증가합니다.',
     benefits: [
@@ -76,7 +90,7 @@ const roundsData = [
     price: 2500000,
     status: 'upcoming',
     participants: 0,
-    seasonId: CURRENT_SEASON_ID,
+    seasonId: getActiveSeasonId(),
     description: '참여비는 루비 보석 악세사리 구매를 위한 예약금입니다.',
     details: '핵심 채굴 구역에 진입합니다. 희귀 원석의 발견 확률이 크게 상승합니다.',
     benefits: [
@@ -92,7 +106,7 @@ const roundsData = [
     price: 3500000,
     status: 'upcoming',
     participants: 0,
-    seasonId: CURRENT_SEASON_ID,
+    seasonId: getActiveSeasonId(),
     description: '참여비는 루비 보석 악세사리 구매를 위한 예약금입니다.',
     details: '루비 광맥에 접근합니다. 고급 루비 원석을 채굴할 수 있는 기회가 열립니다.',
     benefits: [
@@ -108,7 +122,7 @@ const roundsData = [
     price: 5000000,
     status: 'upcoming',
     participants: 0,
-    seasonId: CURRENT_SEASON_ID,
+    seasonId: getActiveSeasonId(),
     description: '참여비는 루비 보석 악세사리 구매를 위한 예약금입니다.',
     details: '시즌의 마지막 라운드입니다. 최고급 보석의 최종 추출이 이루어집니다.',
     benefits: [
@@ -127,7 +141,30 @@ export default function RoundJoin() {
   const [agreedToRefund, setAgreedToRefund] = useState(false);
 
   useEffect(() => {
-    // id가 'R1' 형식 또는 숫자일 수 있음
+    // Try to load from localStorage first
+    try {
+      const seasonsData = localStorage.getItem(STORAGE_KEYS.SEASONS);
+      const storedRoundsData = localStorage.getItem(STORAGE_KEYS.ROUNDS);
+
+      if (seasonsData && storedRoundsData) {
+        const seasons = JSON.parse(seasonsData);
+        const allRounds = JSON.parse(storedRoundsData);
+        const activeSeason = seasons.find(s => s.status === 'active') || seasons[0];
+
+        if (activeSeason) {
+          const seasonRounds = allRounds.filter(r => r.seasonId === activeSeason.id);
+          const foundRound = seasonRounds.find(r => r.id === id || r.id === `R${id}`);
+          if (foundRound) {
+            setRound(foundRound);
+            return;
+          }
+        }
+      }
+    } catch {
+      // Fall through to default
+    }
+
+    // Fallback to hardcoded data
     const foundRound = roundsData.find(r => r.id === id || r.id === `R${id}`);
     if (foundRound) {
       setRound(foundRound);
@@ -215,8 +252,10 @@ export default function RoundJoin() {
               <div className="space-y-4">
                 <div className="bg-dark-700 rounded-xl p-4">
                   <p className="text-gray-400 text-sm mb-1">참여비 (보석 구매 예약금)</p>
-                  <p className={`text-2xl sm:text-3xl font-bold ${round.price === 0 ? 'text-green-400' : 'text-shimmer'}`}>
-                    {round.price === 0 ? '무료' : `₩${round.price.toLocaleString()}`}
+                  <p className={`text-2xl sm:text-3xl font-bold ${
+                    round.status === 'active' ? (round.price === 0 ? 'text-green-400' : 'text-shimmer') : 'text-gray-500'
+                  }`}>
+                    {round.status === 'active' ? (round.price === 0 ? '무료' : `₩${round.price.toLocaleString()}`) : '-'}
                   </p>
                 </div>
 
@@ -299,12 +338,14 @@ export default function RoundJoin() {
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-400">참여비</span>
-                  <span>{round.price === 0 ? '무료' : `₩${round.price.toLocaleString()}`}</span>
+                  <span>{round.status === 'active' ? (round.price === 0 ? '무료' : `₩${round.price.toLocaleString()}`) : '-'}</span>
                 </div>
                 <div className="border-t border-dark-600 pt-3 flex justify-between font-bold">
                   <span>총 결제금액</span>
-                  <span className={round.price === 0 ? 'text-green-400' : 'text-ruby-400'}>
-                    {round.price === 0 ? '무료' : `₩${round.price.toLocaleString()}`}
+                  <span className={
+                    round.status === 'active' ? (round.price === 0 ? 'text-green-400' : 'text-ruby-400') : 'text-gray-500'
+                  }>
+                    {round.status === 'active' ? (round.price === 0 ? '무료' : `₩${round.price.toLocaleString()}`) : '-'}
                   </span>
                 </div>
               </div>

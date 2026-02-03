@@ -1,19 +1,33 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
+import { STORAGE_KEYS } from '../constants/exchangeConstants';
 
 // 토스페이먼츠 클라이언트 키
 const TOSS_CLIENT_KEY = 'live_gck_E92LAa5PVbPzPdypLX9B87YmpXyJ';
 
-const CURRENT_SEASON_ID = 'SEASON-1';
+// Helper to get active season ID
+const getActiveSeasonId = () => {
+  try {
+    const seasonsData = localStorage.getItem(STORAGE_KEYS.SEASONS);
+    if (seasonsData) {
+      const seasons = JSON.parse(seasonsData);
+      const active = seasons.find(s => s.status === 'active') || seasons[0];
+      return active?.id || 'SEASON-1';
+    }
+  } catch {
+    // fallback
+  }
+  return 'SEASON-1';
+};
 
-const roundsData = [
-  { id: 'R1', number: 'Round 1', title: '체험 라운드', price: 0, seasonId: CURRENT_SEASON_ID },
-  { id: 'R2', number: 'Round 2', title: '탐사 라운드', price: 500000, seasonId: CURRENT_SEASON_ID },
-  { id: 'R3', number: 'Round 3', title: '발굴 라운드', price: 1000000, seasonId: CURRENT_SEASON_ID },
-  { id: 'R4', number: 'Round 4', title: 'Deep Cargo', price: 1800000, seasonId: CURRENT_SEASON_ID },
-  { id: 'R5', number: 'Round 5', title: 'Core Mining', price: 2500000, seasonId: CURRENT_SEASON_ID },
-  { id: 'R6', number: 'Round 6', title: 'Ruby Vein', price: 3500000, seasonId: CURRENT_SEASON_ID },
-  { id: 'R7', number: 'Round 7', title: 'Final Extraction', price: 5000000, seasonId: CURRENT_SEASON_ID },
+const defaultRoundsData = [
+  { id: 'R1', number: 'Round 1', title: '체험 라운드', price: 0 },
+  { id: 'R2', number: 'Round 2', title: '탐사 라운드', price: 500000 },
+  { id: 'R3', number: 'Round 3', title: '발굴 라운드', price: 1000000 },
+  { id: 'R4', number: 'Round 4', title: 'Deep Cargo', price: 1800000 },
+  { id: 'R5', number: 'Round 5', title: 'Core Mining', price: 2500000 },
+  { id: 'R6', number: 'Round 6', title: 'Ruby Vein', price: 3500000 },
+  { id: 'R7', number: 'Round 7', title: 'Final Extraction', price: 5000000 },
 ];
 
 export default function Payment() {
@@ -29,9 +43,33 @@ export default function Payment() {
   const userEmail = localStorage.getItem('userEmail') || 'test@ruby.com';
 
   useEffect(() => {
-    const foundRound = roundsData.find(r => r.id === id || r.id === `R${id}`);
+    // Try to load from localStorage first
+    try {
+      const seasonsData = localStorage.getItem(STORAGE_KEYS.SEASONS);
+      const storedRoundsData = localStorage.getItem(STORAGE_KEYS.ROUNDS);
+
+      if (seasonsData && storedRoundsData) {
+        const seasons = JSON.parse(seasonsData);
+        const allRounds = JSON.parse(storedRoundsData);
+        const activeSeason = seasons.find(s => s.status === 'active') || seasons[0];
+
+        if (activeSeason) {
+          const seasonRounds = allRounds.filter(r => r.seasonId === activeSeason.id);
+          const foundRound = seasonRounds.find(r => r.id === id || r.id === `R${id}`);
+          if (foundRound) {
+            setRound({ ...foundRound, seasonId: activeSeason.id });
+            return;
+          }
+        }
+      }
+    } catch {
+      // Fall through to default
+    }
+
+    // Fallback to default data
+    const foundRound = defaultRoundsData.find(r => r.id === id || r.id === `R${id}`);
     if (foundRound) {
-      setRound(foundRound);
+      setRound({ ...foundRound, seasonId: getActiveSeasonId() });
     }
   }, [id]);
 

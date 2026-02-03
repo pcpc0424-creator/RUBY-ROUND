@@ -17,6 +17,26 @@ function FloatingGems() {
 
 // Season Overview
 function SeasonOverview() {
+  const [activeSeason, setActiveSeason] = useState(null);
+
+  useEffect(() => {
+    try {
+      const seasonsData = localStorage.getItem(STORAGE_KEYS.SEASONS);
+      if (seasonsData) {
+        const seasons = JSON.parse(seasonsData);
+        // Find active season first, then fallback to first season
+        const active = seasons.find(s => s.status === 'active') || seasons[0];
+        setActiveSeason(active);
+      }
+    } catch {
+      // Use default if error
+    }
+  }, []);
+
+  const seasonName = activeSeason?.name || 'Season 01';
+  const seasonTitle = activeSeason?.title || '';
+  const isActive = activeSeason?.status === 'active';
+
   return (
     <section className="py-12 sm:py-20 relative overflow-hidden">
       <FloatingGems />
@@ -28,15 +48,23 @@ function SeasonOverview() {
         <div className="max-w-3xl">
           <div className="inline-flex items-center gap-2 px-3 py-1.5 sm:px-4 sm:py-2 bg-ruby-600/10 border border-ruby-600/30 rounded-full mb-4 sm:mb-6 animate-fade-in-down glass" style={{ animationDelay: '0.1s' }}>
             <span className="relative flex h-2 w-2">
-              <span className="absolute inline-flex h-full w-full rounded-full bg-ruby-400 opacity-75 animate-ping" />
-              <span className="relative inline-flex h-2 w-2 rounded-full bg-ruby-500" />
+              <span className={`absolute inline-flex h-full w-full rounded-full ${isActive ? 'bg-ruby-400 animate-ping' : 'bg-gray-400'} opacity-75`} />
+              <span className={`relative inline-flex h-2 w-2 rounded-full ${isActive ? 'bg-ruby-500' : 'bg-gray-500'}`} />
             </span>
-            <span className="text-ruby-400 text-xs sm:text-sm font-medium">현재 진행 중</span>
+            <span className={`text-xs sm:text-sm font-medium ${isActive ? 'text-ruby-400' : 'text-gray-400'}`}>
+              {isActive ? '현재 진행 중' : '시즌 종료'}
+            </span>
           </div>
 
           <h1 className="text-2xl sm:text-4xl lg:text-5xl font-bold mb-4 sm:mb-6 animate-fade-in-up opacity-0" style={{ animationDelay: '0.2s', animationFillMode: 'forwards' }}>
-            Ruby Round <span className="text-shimmer">Season 01</span>
+            Ruby Round <span className="text-shimmer">{seasonName}</span>
           </h1>
+
+          {seasonTitle && (
+            <p className="text-lg sm:text-2xl text-ruby-400 mb-3 animate-fade-in-up opacity-0" style={{ animationDelay: '0.3s', animationFillMode: 'forwards' }}>
+              {seasonTitle}
+            </p>
+          )}
 
           <p className="text-base sm:text-xl text-gray-300 mb-3 sm:mb-4 animate-fade-in-up opacity-0" style={{ animationDelay: '0.4s', animationFillMode: 'forwards' }}>
             Ruby Round 시즌은 하나의 보석 프로젝트 단위로 운영되며,
@@ -60,7 +88,7 @@ const defaultStages = [
     title: '체험 라운드',
     description: '무료 참여, 시즌 세계관과 보석 채굴 구조 체험',
     status: 'completed',
-    price: '무료',
+    price: '-',
     isFree: true,
   },
   {
@@ -68,7 +96,7 @@ const defaultStages = [
     title: '탐사 라운드',
     description: '보석 탐사의 첫 단계, 기본 채굴 시작',
     status: 'completed',
-    price: '유료라운드',
+    price: '-',
     isFree: false,
   },
   {
@@ -76,7 +104,7 @@ const defaultStages = [
     title: '발굴 라운드',
     description: '본격적인 보석 발굴, 중급 원석 접근',
     status: 'current',
-    price: '유료라운드',
+    price: '₩1,000,000',
     isFree: false,
   },
   {
@@ -84,7 +112,7 @@ const defaultStages = [
     title: 'Deep Cargo',
     description: '더 깊은 화물 레이어 개봉, 보석 밀도 증가',
     status: 'upcoming',
-    price: '유료라운드',
+    price: '-',
     isFree: false,
   },
   {
@@ -92,7 +120,7 @@ const defaultStages = [
     title: 'Core Mining',
     description: '핵심 채굴 구역 진입, 희귀 원석 확률 상승',
     status: 'upcoming',
-    price: '유료라운드',
+    price: '-',
     isFree: false,
   },
   {
@@ -100,7 +128,7 @@ const defaultStages = [
     title: 'Ruby Vein',
     description: '루비 광맥 접근, 고급 원석 채굴',
     status: 'upcoming',
-    price: '유료라운드',
+    price: '-',
     isFree: false,
   },
   {
@@ -108,7 +136,7 @@ const defaultStages = [
     title: 'Final Extraction',
     description: '최종 추출, 최고급 보석 확정',
     status: 'upcoming',
-    price: '유료라운드',
+    price: '-',
     isFree: false,
   },
   {
@@ -116,7 +144,7 @@ const defaultStages = [
     title: 'Premium Layer',
     description: '프리미엄 레이어 진입, 특급 원석 채굴',
     status: 'upcoming',
-    price: '유료라운드',
+    price: '-',
     isFree: false,
   },
   {
@@ -124,7 +152,7 @@ const defaultStages = [
     title: 'Ultimate Discovery',
     description: '궁극의 발견, 최종 보석 확정',
     status: 'upcoming',
-    price: '유료라운드',
+    price: '-',
     isFree: false,
   },
 ];
@@ -132,6 +160,17 @@ const defaultStages = [
 const formatPrice = (price) => {
   if (!price || price === 0) return '무료';
   return '₩' + new Intl.NumberFormat('ko-KR').format(price);
+};
+
+// 라운드 상태에 따라 금액 표시 (현재 진행중인 라운드만 금액 표시)
+const displayPrice = (round) => {
+  // 진행중(current/active) 라운드만 금액 표시
+  if (round.status === 'current' || round.status === 'active') {
+    if (round.price === 0 || round.isFree) return '무료';
+    return formatPrice(round.price);
+  }
+  // 종료/예정 라운드는 금액 비노출
+  return '-';
 };
 
 // Season Progress Structure
@@ -163,14 +202,17 @@ function SeasonStructure() {
       });
 
       // Map round data to stage format
-      const dynamicStages = seasonRounds.map(round => ({
-        round: round.number,
-        title: round.title,
-        description: round.description || '',
-        status: round.status === 'active' ? 'current' : round.status,
-        price: round.price === 0 ? '무료' : formatPrice(round.price),
-        isFree: round.price === 0,
-      }));
+      const dynamicStages = seasonRounds.map(round => {
+        const mappedStatus = round.status === 'active' ? 'current' : round.status;
+        return {
+          round: round.number,
+          title: round.title,
+          description: round.description || '',
+          status: mappedStatus,
+          price: displayPrice({ ...round, status: mappedStatus }),
+          isFree: round.price === 0,
+        };
+      });
 
       setStages(dynamicStages);
     } catch {

@@ -1,10 +1,24 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { createRoundPayment } from '../api/seasonApi';
+import { STORAGE_KEYS } from '../constants/exchangeConstants';
 
-const CURRENT_SEASON_ID = 'SEASON-1';
+// Helper to get active season ID
+const getActiveSeasonId = () => {
+  try {
+    const seasonsData = localStorage.getItem(STORAGE_KEYS.SEASONS);
+    if (seasonsData) {
+      const seasons = JSON.parse(seasonsData);
+      const active = seasons.find(s => s.status === 'active') || seasons[0];
+      return active?.id || 'SEASON-1';
+    }
+  } catch {
+    // fallback
+  }
+  return 'SEASON-1';
+};
 
-const rounds = [
+const defaultRounds = [
   {
     id: 'R1',
     number: 'Round 1',
@@ -12,7 +26,7 @@ const rounds = [
     price: 0,
     status: 'completed',
     participants: 1250,
-    seasonId: CURRENT_SEASON_ID,
+    seasonId: getActiveSeasonId(),
     description: '무료 체험 라운드 - 실물 보상은 제공되지 않으며 시즌 누적 정보로만 반영됩니다.',
     details: '시즌의 세계관과 보석 채굴 구조를 체험해보세요. 무료로 참여할 수 있으며, 시즌 참여 경험을 쌓을 수 있습니다.',
   },
@@ -23,7 +37,7 @@ const rounds = [
     price: 500000,
     status: 'completed',
     participants: 890,
-    seasonId: CURRENT_SEASON_ID,
+    seasonId: getActiveSeasonId(),
     description: '참여비는 루비 보석 악세사리 구매를 위한 예약금입니다.',
     details: '보석 탐사의 첫 단계입니다. 기본 채굴이 시작되며, 초급 원석에 접근할 수 있습니다.',
   },
@@ -34,7 +48,7 @@ const rounds = [
     price: 1000000,
     status: 'active',
     participants: 567,
-    seasonId: CURRENT_SEASON_ID,
+    seasonId: getActiveSeasonId(),
     description: '참여비는 루비 보석 악세사리 구매를 위한 예약금입니다.',
     details: '본격적인 보석 발굴 단계입니다. 중급 원석에 접근하며, 보석의 품질이 향상됩니다.',
   },
@@ -45,7 +59,7 @@ const rounds = [
     price: 1800000,
     status: 'upcoming',
     participants: 0,
-    seasonId: CURRENT_SEASON_ID,
+    seasonId: getActiveSeasonId(),
     description: '참여비는 루비 보석 악세사리 구매를 위한 예약금입니다.',
     details: '더 깊은 화물 레이어를 개봉합니다. 보석의 크기와 밀도가 이전 라운드보다 증가합니다.',
   },
@@ -55,7 +69,7 @@ const rounds = [
     title: 'Core Mining',
     price: 2500000,
     status: 'upcoming',
-    seasonId: CURRENT_SEASON_ID,
+    seasonId: getActiveSeasonId(),
     participants: 0,
     description: '참여비는 루비 보석 악세사리 구매를 위한 예약금입니다.',
     details: '핵심 채굴 구역에 진입합니다. 희귀 원석의 발견 확률이 크게 상승합니다.',
@@ -67,7 +81,7 @@ const rounds = [
     price: 3500000,
     status: 'upcoming',
     participants: 0,
-    seasonId: CURRENT_SEASON_ID,
+    seasonId: getActiveSeasonId(),
     description: '참여비는 루비 보석 악세사리 구매를 위한 예약금입니다.',
     details: '루비 광맥에 접근합니다. 고급 루비 원석을 채굴할 수 있는 기회가 열립니다.',
   },
@@ -78,7 +92,7 @@ const rounds = [
     price: 5000000,
     status: 'upcoming',
     participants: 0,
-    seasonId: CURRENT_SEASON_ID,
+    seasonId: getActiveSeasonId(),
     description: '참여비는 루비 보석 악세사리 구매를 위한 예약금입니다.',
     details: '시즌의 마지막 라운드입니다. 최고급 보석의 최종 추출이 이루어집니다.',
   },
@@ -128,9 +142,9 @@ function RoundCard({ round, isSelected, onClick, index }) {
         <div>
           <p className="text-gray-500 text-[10px] sm:text-xs mb-0.5 sm:mb-1">참여비 (예약금)</p>
           <p className={`text-lg sm:text-2xl font-bold ${
-            round.price === 0 ? 'text-green-400' : 'text-ruby-400'
+            round.status === 'active' ? (round.price === 0 ? 'text-green-400' : 'text-ruby-400') : 'text-gray-500'
           }`}>
-            {round.price === 0 ? '무료' : `₩${round.price.toLocaleString()}`}
+            {round.status === 'active' ? (round.price === 0 ? '무료' : `₩${round.price.toLocaleString()}`) : '-'}
           </p>
         </div>
         {round.participants > 0 && (
@@ -188,9 +202,9 @@ function RoundDetail({ round, onPayment }) {
       <div className="mb-4 sm:mb-6">
         <p className="text-gray-500 text-xs sm:text-sm mb-1 sm:mb-2">참여비 (보석 구매 예약금)</p>
         <p className={`text-2xl sm:text-4xl font-bold ${
-          round.price === 0 ? 'text-green-400' : 'text-shimmer'
+          round.status === 'active' ? (round.price === 0 ? 'text-green-400' : 'text-shimmer') : 'text-gray-500'
         }`}>
-          {round.price === 0 ? '무료' : `₩${round.price.toLocaleString()}`}
+          {round.status === 'active' ? (round.price === 0 ? '무료' : `₩${round.price.toLocaleString()}`) : '-'}
         </p>
       </div>
 
@@ -253,7 +267,7 @@ function RoundDetail({ round, onPayment }) {
             ) : round.price === 0 ? (
               '무료 체험 시작하기'
             ) : (
-              `₩${round.price.toLocaleString()} 결제하기`
+              '참여하기'
             )}
           </span>
           {!isProcessing && agreedToTerms && (
@@ -288,7 +302,47 @@ function RoundDetail({ round, onPayment }) {
 
 export default function Rounds() {
   const navigate = useNavigate();
-  const [selectedRound, setSelectedRound] = useState(rounds.find(r => r.status === 'active') || rounds[0]);
+  const [rounds, setRounds] = useState(defaultRounds);
+  const [selectedRound, setSelectedRound] = useState(null);
+
+  useEffect(() => {
+    // Load rounds from localStorage based on active season
+    try {
+      const seasonsData = localStorage.getItem(STORAGE_KEYS.SEASONS);
+      const roundsData = localStorage.getItem(STORAGE_KEYS.ROUNDS);
+
+      if (seasonsData && roundsData) {
+        const seasons = JSON.parse(seasonsData);
+        const allRounds = JSON.parse(roundsData);
+
+        // Find active season
+        const activeSeason = seasons.find(s => s.status === 'active') || seasons[0];
+
+        if (activeSeason) {
+          // Filter rounds for active season
+          const seasonRounds = allRounds.filter(r => r.seasonId === activeSeason.id);
+
+          if (seasonRounds.length > 0) {
+            // Sort by round number
+            seasonRounds.sort((a, b) => {
+              const numA = parseInt(a.id?.replace(/[^0-9]/g, '') || '0');
+              const numB = parseInt(b.id?.replace(/[^0-9]/g, '') || '0');
+              return numA - numB;
+            });
+
+            setRounds(seasonRounds);
+            setSelectedRound(seasonRounds.find(r => r.status === 'active') || seasonRounds[0]);
+            return;
+          }
+        }
+      }
+    } catch {
+      // Use default rounds
+    }
+
+    // Fallback to default rounds
+    setSelectedRound(defaultRounds.find(r => r.status === 'active') || defaultRounds[0]);
+  }, []);
 
   // 결제 처리 함수
   const handlePayment = async (round) => {
