@@ -38,7 +38,7 @@ export default function KakaoCallback() {
       }
 
       // 인가 코드로 토큰 요청 (SDK 사용)
-      const response = await fetch('/api/auth/kakao', {
+      const response = await fetch(`${import.meta.env.BASE_URL}api/auth/kakao`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -86,7 +86,7 @@ export default function KakaoCallback() {
       // 신규 가입자에게 카카오톡 환영 메시지 발송
       if (registerResult.isNewUser) {
         try {
-          await fetch('/api/auth/kakao/send-welcome-message', {
+          await fetch(`${import.meta.env.BASE_URL}api/auth/kakao/send-welcome-message`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({

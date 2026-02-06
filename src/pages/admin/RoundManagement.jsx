@@ -138,7 +138,7 @@ export default function RoundManagement() {
           ...allRounds[index],
           number: formData.number,
           title: formData.title,
-          price: parseInt(formData.price) || 0,
+          // 수정 모드에서는 기존 금액 유지
           status: formData.status,
           description: formData.description,
           updatedAt: new Date().toISOString(),
@@ -374,16 +374,19 @@ export default function RoundManagement() {
                   className="w-full px-4 py-3 bg-dark-700 border border-dark-600 rounded-lg text-white focus:border-ruby-500 focus:outline-none"
                 />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">참여비 (원)</label>
-                <input
-                  type="number"
-                  value={formData.price}
-                  onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                  placeholder="0"
-                  className="w-full px-4 py-3 bg-dark-700 border border-dark-600 rounded-lg text-white focus:border-ruby-500 focus:outline-none"
-                />
-              </div>
+              {/* 추가 모드에서만 금액 입력 가능, 수정 모드에서는 금액 수정 불가 */}
+              {modalType === 'add' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">참여비 (원)</label>
+                  <input
+                    type="number"
+                    value={formData.price}
+                    onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                    placeholder="0"
+                    className="w-full px-4 py-3 bg-dark-700 border border-dark-600 rounded-lg text-white focus:border-ruby-500 focus:outline-none"
+                  />
+                </div>
+              )}
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-2">상태</label>
                 <select

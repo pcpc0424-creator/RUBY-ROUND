@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { STORAGE_KEYS } from '../constants/exchangeConstants';
+// seasonApi를 임포트하여 initializeSampleSeasonData가 실행되도록 함
+import '../api/seasonApi';
 
 // Floating Particles for background
 function FloatingGems() {

@@ -250,6 +250,8 @@ export const STORAGE_KEYS = {
   AUDIT_LOGS: 'rubyround_audit_logs',
   // 시스템 설정
   SYSTEM_SETTINGS: 'rubyround_system_settings',
+  // 웹 문의
+  CONTACT_INQUIRIES: 'rubyround_contact_inquiries',
 };
 
 // 배송 상태

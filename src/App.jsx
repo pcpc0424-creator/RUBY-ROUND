@@ -49,8 +49,11 @@ import ConsultationManagement from './pages/admin/ConsultationManagement';
 import SeasonPriceManagement from './pages/admin/SeasonPriceManagement';
 
 function App() {
+  // Remove trailing slash for React Router basename
+  const basename = import.meta.env.BASE_URL.replace(/\/$/, '');
+
   return (
-    <Router>
+    <Router basename={basename}>
       <Routes>
         {/* Customer Login */}
         <Route path="/login" element={<Login />} />

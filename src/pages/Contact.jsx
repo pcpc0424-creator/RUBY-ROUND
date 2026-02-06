@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { STORAGE_KEYS } from '../constants/exchangeConstants';
 
 export default function Contact() {
   const [formData, setFormData] = useState({
@@ -10,6 +11,7 @@ export default function Contact() {
     content: '',
     agreePrivacy: false,
   });
+  const [submitted, setSubmitted] = useState(false);
 
   const categories = [
     '서비스 이용 문의',
@@ -21,8 +23,33 @@ export default function Contact() {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    console.log('Form submitted:', formData);
-    alert('문의가 접수되었습니다. 빠른 시일 내에 답변드리겠습니다.');
+
+    // localStorage에 문의 저장
+    const inquiries = JSON.parse(localStorage.getItem(STORAGE_KEYS.CONTACT_INQUIRIES) || '[]');
+    const newInquiry = {
+      id: `INQ-${Date.now()}`,
+      category: formData.category,
+      name: formData.name,
+      email: formData.email,
+      phone: formData.phone,
+      title: formData.title,
+      content: formData.content,
+      status: 'new',
+      createdAt: new Date().toISOString(),
+    };
+    inquiries.unshift(newInquiry);
+    localStorage.setItem(STORAGE_KEYS.CONTACT_INQUIRIES, JSON.stringify(inquiries));
+
+    setSubmitted(true);
+    setFormData({
+      category: '',
+      name: '',
+      email: '',
+      phone: '',
+      title: '',
+      content: '',
+      agreePrivacy: false,
+    });
   };
 
   return (
@@ -75,6 +102,30 @@ export default function Contact() {
 
           {/* Contact Form */}
           <div className="lg:col-span-2">
+            {submitted ? (
+              <div className="card p-6 sm:p-10 animate-fade-in-up text-center">
+                <div className="flex justify-center mb-4">
+                  <div className="w-16 h-16 bg-green-600/20 rounded-full flex items-center justify-center">
+                    <svg className="w-8 h-8 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
+                </div>
+                <h3 className="text-xl sm:text-2xl font-bold text-white mb-3">문의가 접수되었습니다</h3>
+                <p className="text-gray-400 text-sm sm:text-base mb-2">
+                  빠른 시일 내에 답변드리겠습니다.
+                </p>
+                <p className="text-gray-500 text-xs sm:text-sm mb-6">
+                  입력하신 이메일로 답변을 보내드립니다.
+                </p>
+                <button
+                  onClick={() => setSubmitted(false)}
+                  className="btn-primary px-6 py-2.5 text-sm"
+                >
+                  추가 문의하기
+                </button>
+              </div>
+            ) : (
             <form onSubmit={handleSubmit} className="card p-4 sm:p-6 animate-fade-in-up opacity-0" style={{ animationDelay: '0.6s', animationFillMode: 'forwards' }}>
               <div className="space-y-4">
                 {/* Category */}
@@ -193,6 +244,7 @@ export default function Contact() {
                 </button>
               </div>
             </form>
+            )}
           </div>
         </div>
       </div>

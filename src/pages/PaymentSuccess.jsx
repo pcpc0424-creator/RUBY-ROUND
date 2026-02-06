@@ -47,7 +47,7 @@ export default function PaymentSuccess() {
         }
 
         // 토스페이먼츠 결제 승인 API 호출
-        const confirmResponse = await fetch('/api/payments/confirm', {
+        const confirmResponse = await fetch(`${import.meta.env.BASE_URL}api/payments/confirm`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

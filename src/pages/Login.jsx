@@ -275,7 +275,7 @@ export default function Login() {
         <Link to="/" className="flex items-center justify-center mb-6 sm:mb-8 animate-fade-in-down opacity-0 group" style={{ animationDelay: '0.1s', animationFillMode: 'forwards' }}>
           <div className="relative">
             <img
-              src="/logo.png"
+              src={`${import.meta.env.BASE_URL}logo.png`}
               alt="Ruby Round"
               className="h-10 sm:h-12 transition-all duration-500 group-hover:scale-110 group-hover:brightness-125"
             />

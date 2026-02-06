@@ -30,7 +30,7 @@ export default function GoogleCallback() {
 
   const handleGoogleCallback = async (code) => {
     try {
-      const response = await fetch('/api/auth/google', {
+      const response = await fetch(`${import.meta.env.BASE_URL}api/auth/google`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
