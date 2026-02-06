@@ -404,18 +404,30 @@ export const adminCancelApplication = async (applicationId, adminName, reason) =
 
 // 관리자 로그인
 export const adminLogin = async (email, password) => {
-  // 샘플 관리자 계정
+  // 관리자 계정
   const adminUsers = {
-    'admin@rubyround.net': {
-      email: 'admin@rubyround.net',
-      password: 'admin1234',
-      name: '임시윤',
+    'cjsql4159@rubyround.net': {
+      email: 'cjsql4159@rubyround.net',
+      password: 'ja04051010!',
+      name: '대표',
       role: 'ceo',
     },
-    'cs@rubyround.net': {
-      email: 'cs@rubyround.net',
-      password: 'cs1234',
-      name: 'CS관리자',
+    'lbj0134@rubyround.net': {
+      email: 'lbj0134@rubyround.net',
+      password: '0p9o8i7u6y@',
+      name: 'CS관리자1',
+      role: 'cs_manager',
+    },
+    'dmswls5547@rubyround.net': {
+      email: 'dmswls5547@rubyround.net',
+      password: 'wjdehd312#',
+      name: 'CS관리자2',
+      role: 'cs_manager',
+    },
+    'nxwxn1007@rubyround.net': {
+      email: 'nxwxn1007@rubyround.net',
+      password: 'aa5016015',
+      name: 'CS관리자3',
       role: 'cs_manager',
     },
   };
@@ -663,7 +675,6 @@ export const registerOrGetSocialUser = async (userData) => {
 
 // 사용자 로그인
 export const loginUser = async (email, password) => {
-  initializeSampleUsers();
   const users = getFromStorage(STORAGE_KEYS.USERS, []);
   const user = users.find(u => u.email === email && u.password === password);
 
@@ -834,90 +845,6 @@ export const getUserStatistics = async () => {
       totalBalance,
     },
   };
-};
-
-// 샘플 사용자 초기화
-export const initializeSampleUsers = () => {
-  const users = getFromStorage(STORAGE_KEYS.USERS, []);
-
-  if (users.length === 0) {
-    const sampleUsers = [
-      {
-        id: 'USR-20260101-TEST',
-        name: '김루비',
-        email: 'test@ruby.com',
-        password: '1234',
-        phone: '010-1234-5678',
-        status: 'active',
-        adultVerified: true,
-        adultVerifiedAt: new Date(Date.now() - 25 * 24 * 60 * 60 * 1000).toISOString(),
-        createdAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
-        updatedAt: new Date().toISOString(),
-      },
-      {
-        id: 'USR-20260105-DEMO',
-        name: '박다이아',
-        email: 'diamond@ruby.com',
-        password: '1234',
-        phone: '010-5678-1234',
-        status: 'active',
-        adultVerified: false,
-        createdAt: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000).toISOString(),
-        updatedAt: new Date().toISOString(),
-      },
-      {
-        id: 'USR-20260110-SAMP',
-        name: '이사파이어',
-        email: 'sapphire@ruby.com',
-        password: '1234',
-        phone: '010-9999-8888',
-        status: 'active',
-        adultVerified: false,
-        createdAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
-        updatedAt: new Date().toISOString(),
-      },
-    ];
-
-    saveToStorage(STORAGE_KEYS.USERS, sampleUsers);
-
-    // 샘플 사용자 잔액 설정
-    const balances = getFromStorage(STORAGE_KEYS.USER_EXCHANGE_BALANCE, {});
-    balances['test@ruby.com'] = {
-      userId: 'test@ruby.com',
-      totalBalance: 1500000,
-      availableBalance: 1500000,
-      holdBalance: 0,
-      usedBalance: 0,
-      ledger: [
-        {
-          id: 'LED-INIT-1',
-          type: 'credit',
-          amount: 1500000,
-          balanceBefore: 0,
-          balanceAfter: 1500000,
-          description: '시즌 보상 교환금 전환',
-          createdAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-        },
-      ],
-    };
-    balances['diamond@ruby.com'] = {
-      userId: 'diamond@ruby.com',
-      totalBalance: 800000,
-      availableBalance: 800000,
-      holdBalance: 0,
-      usedBalance: 0,
-      ledger: [],
-    };
-    balances['sapphire@ruby.com'] = {
-      userId: 'sapphire@ruby.com',
-      totalBalance: 350000,
-      availableBalance: 350000,
-      holdBalance: 0,
-      usedBalance: 0,
-      ledger: [],
-    };
-    saveToStorage(STORAGE_KEYS.USER_EXCHANGE_BALANCE, balances);
-  }
 };
 
 // ========== 배송 관리 API ==========

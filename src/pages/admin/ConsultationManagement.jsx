@@ -16,80 +16,6 @@ const STATUSES = [
   { value: 'completed', label: '완료', color: 'bg-green-500' },
 ];
 
-// 임시 목 데이터 - 고객 목록
-const mockCustomers = [
-  {
-    id: 1,
-    name: '김민수',
-    nickname: '민수님',
-    contact: '010-1234-5678',
-    memberId: 'user_001',
-    memberName: '김민수',
-    latestChannel: 'kakao',
-    latestStatus: 'in_progress',
-    latestDate: '2025-01-20 14:30',
-    staffName: '관리자1',
-    consultations: [
-      { id: 1, date: '2025-01-20 14:30', channel: 'kakao', status: 'in_progress', memo: '배송 지연 관련 문의. 1/22 도착 예정 안내 완료.', staff: '관리자1' },
-      { id: 2, date: '2025-01-19 10:15', channel: 'kakao', status: 'completed', memo: '교환 신청 방법 안내. 마이페이지에서 진행 가능하다고 안내.', staff: '관리자2' },
-      { id: 3, date: '2025-01-18 16:45', channel: 'instagram', status: 'completed', memo: '시즌2 참여 방법 문의. 홈페이지 안내 완료.', staff: '관리자1' },
-    ]
-  },
-  {
-    id: 2,
-    name: '이영희',
-    nickname: null,
-    contact: '010-9876-5432',
-    memberId: null,
-    memberName: null,
-    latestChannel: 'instagram',
-    latestStatus: 'new',
-    latestDate: '2025-01-20 11:20',
-    staffName: '관리자2',
-    consultations: [
-      { id: 1, date: '2025-01-20 11:20', channel: 'instagram', status: 'new', memo: '루비 진품 여부 문의. 감정서 안내 예정.', staff: '관리자2' },
-    ]
-  },
-  {
-    id: 3,
-    name: '박지훈',
-    nickname: '지훈이',
-    contact: '010-5555-1234',
-    memberId: 'user_015',
-    memberName: '박지훈',
-    latestChannel: 'facebook',
-    latestStatus: 'completed',
-    latestDate: '2025-01-19 09:00',
-    staffName: '관리자1',
-    consultations: [
-      { id: 1, date: '2025-01-19 09:00', channel: 'facebook', status: 'completed', memo: '결제 오류 문의. 카드사 문제로 확인됨. 재결제 안내 완료.', staff: '관리자1' },
-      { id: 2, date: '2025-01-17 14:20', channel: 'tiktok', status: 'completed', memo: '이벤트 참여 방법 문의. DM으로 상세 안내 완료.', staff: '관리자2' },
-    ]
-  },
-  {
-    id: 4,
-    name: '최수진',
-    nickname: '수진맘',
-    contact: null,
-    memberId: null,
-    memberName: null,
-    latestChannel: 'tiktok',
-    latestStatus: 'in_progress',
-    latestDate: '2025-01-20 16:00',
-    staffName: '관리자1',
-    consultations: [
-      { id: 1, date: '2025-01-20 16:00', channel: 'tiktok', status: 'in_progress', memo: '환불 요청. 환불 정책 안내 후 처리 대기 중.', staff: '관리자1' },
-    ]
-  },
-];
-
-// 회원 검색용 목 데이터
-const mockMembers = [
-  { id: 'user_001', name: '김민수', phone: '010-1234-5678' },
-  { id: 'user_002', name: '홍길동', phone: '010-1111-2222' },
-  { id: 'user_015', name: '박지훈', phone: '010-5555-1234' },
-  { id: 'user_020', name: '정다은', phone: '010-7777-8888' },
-];
 
 // 문의 상태 옵션
 const INQUIRY_STATUSES = [
@@ -100,7 +26,7 @@ const INQUIRY_STATUSES = [
 
 export default function ConsultationManagement() {
   const [activeTab, setActiveTab] = useState('consultation');
-  const [customers, setCustomers] = useState(mockCustomers);
+  const [customers, setCustomers] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
@@ -299,16 +225,8 @@ export default function ConsultationManagement() {
     setCustomers(customers.map(c => c.id === updatedCustomer.id ? updatedCustomer : c));
   };
 
-  // 회원 검색 필터링
-  const filteredMembers = mockMembers.filter(member => {
-    if (!memberSearchTerm) return true;
-    const term = memberSearchTerm.toLowerCase();
-    return (
-      member.name.toLowerCase().includes(term) ||
-      member.phone.includes(term) ||
-      member.id.toLowerCase().includes(term)
-    );
-  });
+  // 회원 검색 필터링 (실제 회원 데이터 연동 필요)
+  const filteredMembers = [];
 
   const newInquiryCount = inquiries.filter(inq => inq.status === 'new').length;
 

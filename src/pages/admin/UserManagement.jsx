@@ -6,7 +6,6 @@ import {
   chargeUserBalance,
   deductUserBalance,
   getUserStatistics,
-  initializeSampleUsers,
   getCustomerDetail,
   getAdminAuth,
 } from '../../api/exchangeApi';
@@ -28,7 +27,6 @@ export default function UserManagement() {
   const auth = getAdminAuth();
 
   useEffect(() => {
-    initializeSampleUsers();
     loadUsers();
     loadStats();
   }, [filters]);

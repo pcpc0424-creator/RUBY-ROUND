@@ -3,7 +3,7 @@ import ExchangeStatusBadge from './ExchangeStatusBadge';
 import ExchangeDetailModal from './ExchangeDetailModal';
 import { EXCHANGE_CATEGORIES, getStatusByKey } from '../../constants/exchangeConstants';
 import { getMyApplications, cancelApplication } from '../../api/exchangeApi';
-import { formatAmount, formatDate, getRelativeTime, initializeSampleData } from '../../utils/localStorage';
+import { formatAmount, formatDate, getRelativeTime } from '../../utils/localStorage';
 
 export default function ExchangeHistoryList() {
   const [applications, setApplications] = useState([]);
@@ -13,8 +13,7 @@ export default function ExchangeHistoryList() {
 
   // 데이터 로드
   const loadApplications = async () => {
-    initializeSampleData();
-    const userEmail = localStorage.getItem('userEmail') || 'test@ruby.com';
+    const userEmail = localStorage.getItem('userEmail');
     const result = await getMyApplications(userEmail);
     if (result.success) {
       setApplications(result.data);

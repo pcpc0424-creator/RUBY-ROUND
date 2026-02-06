@@ -58,7 +58,7 @@ export default function ExchangeDetail() {
     if (!window.confirm('상태를 변경하시겠습니까?')) return;
 
     setActionLoading(true);
-    const result = await updateStatus(id, newStatus, `상태 변경: ${newStatus}`);
+    const result = await updateStatus(id, newStatus, auth?.name || 'Admin', `상태 변경: ${newStatus}`);
     if (result.success) {
       loadApplication();
     } else {
@@ -77,8 +77,11 @@ export default function ExchangeDetail() {
     setActionLoading(true);
     const result = await confirmConsultation(
       id,
-      confirmData.finalSpecification,
-      parseInt(confirmData.finalAmount)
+      {
+        finalSpecification: confirmData.finalSpecification,
+        finalAmount: parseInt(confirmData.finalAmount),
+      },
+      auth?.name || 'Admin'
     );
     if (result.success) {
       setShowConfirmModal(false);
@@ -96,7 +99,7 @@ export default function ExchangeDetail() {
     if (!window.confirm('승인하시겠습니까? 승인 시 교환금이 차감됩니다.')) return;
 
     setActionLoading(true);
-    const result = await approveApplication(id);
+    const result = await approveApplication(id, auth?.name || 'Admin');
     if (result.success) {
       loadApplication();
       alert('승인되었습니다. 교환금이 차감되었습니다.');
@@ -109,7 +112,7 @@ export default function ExchangeDetail() {
   // 배송 정보 업데이트
   const handleUpdateDelivery = async () => {
     setActionLoading(true);
-    const result = await updateDelivery(id, { trackingNumber: deliveryData.trackingNumber });
+    const result = await updateDelivery(id, { trackingNumber: deliveryData.trackingNumber }, auth?.name || 'Admin');
     if (result.success) {
       setShowDeliveryModal(false);
       setDeliveryData({ trackingNumber: '' });

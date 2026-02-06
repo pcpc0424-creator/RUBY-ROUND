@@ -10,7 +10,7 @@ import {
   MIN_EXCHANGE_AMOUNT,
 } from '../../constants/exchangeConstants';
 import { getMyBalance, createApplication } from '../../api/exchangeApi';
-import { formatAmount, initializeSampleData } from '../../utils/localStorage';
+import { formatAmount } from '../../utils/localStorage';
 
 export default function ExchangeApplyForm({ onComplete, onCancel }) {
   const [loading, setLoading] = useState(true);
@@ -44,8 +44,7 @@ export default function ExchangeApplyForm({ onComplete, onCancel }) {
   // 잔액 조회
   useEffect(() => {
     const fetchBalance = async () => {
-      initializeSampleData();
-      const userEmail = localStorage.getItem('userEmail') || 'test@ruby.com';
+      const userEmail = localStorage.getItem('userEmail');
       const result = await getMyBalance(userEmail);
       if (result.success) {
         setBalance(result.data);

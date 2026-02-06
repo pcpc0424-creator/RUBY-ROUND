@@ -74,7 +74,7 @@ export default function AdminLogin() {
                 className="w-full px-4 py-3 bg-dark-700 border border-dark-600 rounded-lg
                   text-white placeholder-gray-500
                   focus:outline-none focus:border-ruby-500 transition-colors"
-                placeholder="admin@rubyround.net"
+                placeholder="이메일을 입력하세요"
                 required
               />
             </div>
@@ -114,20 +114,6 @@ export default function AdminLogin() {
             </button>
           </form>
 
-          {/* 테스트 계정 안내 */}
-          <div className="mt-6 pt-6 border-t border-dark-600">
-            <p className="text-gray-500 text-sm mb-3">테스트 계정</p>
-            <div className="space-y-2 text-xs text-gray-400">
-              <div className="flex justify-between">
-                <span>대표 (승인 권한)</span>
-                <span className="font-mono">admin@rubyround.net / admin1234</span>
-              </div>
-              <div className="flex justify-between">
-                <span>CS 매니저</span>
-                <span className="font-mono">cs@rubyround.net / cs1234</span>
-              </div>
-            </div>
-          </div>
         </div>
 
         {/* 고객 사이트 링크 */}
