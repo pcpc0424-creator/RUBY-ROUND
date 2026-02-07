@@ -1,92 +1,81 @@
 import { useState, useEffect } from 'react';
-import { STORAGE_KEYS } from '../../constants/exchangeConstants';
-
-// localStorage 헬퍼
-const getFromStorage = (key, defaultValue = []) => {
-  try {
-    const data = localStorage.getItem(key);
-    return data ? JSON.parse(data) : defaultValue;
-  } catch {
-    return defaultValue;
-  }
-};
-
-const saveToStorage = (key, data) => {
-  localStorage.setItem(key, JSON.stringify(data));
-};
-
-const formatAmount = (amount) => {
-  return new Intl.NumberFormat('ko-KR', { style: 'currency', currency: 'KRW' }).format(amount);
-};
+import { getSeasons, getRoundsBySeason, createRound, updateRound, getPaymentsBySeason } from '../../api/seasonApi';
+import { formatAmount } from '../../utils/localStorage';
 
 export default function RoundManagement() {
   const [rounds, setRounds] = useState([]);
   const [seasons, setSeasons] = useState([]);
+  const [payments, setPayments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedSeason, setSelectedSeason] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [modalType, setModalType] = useState(''); // 'add' | 'edit'
   const [editingRound, setEditingRound] = useState(null);
+  const [saving, setSaving] = useState(false);
   const [formData, setFormData] = useState({
-    number: '',
-    title: '',
-    price: '',
+    roundNumber: '',
+    name: '',
+    roundValue: '',
     status: 'upcoming',
     description: '',
   });
 
   useEffect(() => {
-    loadData();
+    loadSeasons();
   }, []);
 
   useEffect(() => {
     if (selectedSeason) {
       loadRounds();
+      loadPayments();
     }
   }, [selectedSeason]);
 
-  const loadData = async () => {
+  const loadSeasons = async () => {
     setLoading(true);
-    const seasonsData = getFromStorage(STORAGE_KEYS.SEASONS, []);
-    setSeasons(seasonsData);
-    if (seasonsData.length > 0) {
-      setSelectedSeason(seasonsData[0].id);
+    const result = await getSeasons();
+    if (result.success && result.data.length > 0) {
+      setSeasons(result.data);
+      setSelectedSeason(result.data[0].id);
     }
     setLoading(false);
   };
 
-  const loadRounds = () => {
-    const allRounds = getFromStorage(STORAGE_KEYS.ROUNDS, []);
-    const seasonRounds = allRounds.filter(r => r.seasonId === selectedSeason);
-    // Sort by round number
-    seasonRounds.sort((a, b) => {
-      const numA = parseInt(a.id.replace('R', ''));
-      const numB = parseInt(b.id.replace('R', ''));
-      return numA - numB;
-    });
-    setRounds(seasonRounds);
+  const loadRounds = async () => {
+    const result = await getRoundsBySeason(selectedSeason);
+    if (result.success) {
+      // Sort by round number
+      const sortedRounds = [...result.data].sort((a, b) => {
+        return (a.round_number || 0) - (b.round_number || 0);
+      });
+      setRounds(sortedRounds);
+    }
   };
 
-  const getPaymentStats = (roundId, seasonId) => {
-    const payments = getFromStorage(STORAGE_KEYS.ROUND_PAYMENTS, []);
+  const loadPayments = async () => {
+    const result = await getPaymentsBySeason(selectedSeason);
+    if (result.success) {
+      setPayments(result.data);
+    }
+  };
+
+  const getPaymentStats = (roundId) => {
     const roundPayments = payments.filter(p =>
-      p.roundId === roundId &&
-      p.seasonId === seasonId &&
+      p.round_id === roundId &&
       p.status === 'success'
     );
     return {
       count: roundPayments.length,
-      total: roundPayments.reduce((sum, p) => sum + p.amount, 0),
+      total: roundPayments.reduce((sum, p) => sum + (p.amount || 0), 0),
     };
   };
 
-  const handleStatusChange = (roundId, newStatus) => {
-    const allRounds = getFromStorage(STORAGE_KEYS.ROUNDS, []);
-    const index = allRounds.findIndex(r => r.id === roundId);
-    if (index !== -1) {
-      allRounds[index].status = newStatus;
-      saveToStorage(STORAGE_KEYS.ROUNDS, allRounds);
+  const handleStatusChange = async (roundId, newStatus) => {
+    const result = await updateRound(roundId, { status: newStatus });
+    if (result.success) {
       loadRounds();
+    } else {
+      alert(result.error || '상태 변경에 실패했습니다.');
     }
   };
 
@@ -94,9 +83,9 @@ export default function RoundManagement() {
     setModalType('add');
     setEditingRound(null);
     setFormData({
-      number: `Round ${rounds.length + 1}`,
-      title: '',
-      price: '',
+      roundNumber: rounds.length + 1,
+      name: `${rounds.length + 1}회차`,
+      roundValue: '',
       status: 'upcoming',
       description: '',
     });
@@ -107,48 +96,49 @@ export default function RoundManagement() {
     setModalType('edit');
     setEditingRound(round);
     setFormData({
-      number: round.number,
-      title: round.title,
-      price: round.price.toString(),
+      roundNumber: round.round_number,
+      name: round.name,
+      roundValue: round.round_value?.toString() || '',
       status: round.status,
       description: round.description || '',
     });
     setShowModal(true);
   };
 
-  const handleSaveRound = () => {
-    const allRounds = getFromStorage(STORAGE_KEYS.ROUNDS, []);
+  const handleSaveRound = async () => {
+    setSaving(true);
 
     if (modalType === 'add') {
-      const newRound = {
-        id: `R${rounds.length + 1}`,
-        seasonId: selectedSeason,
-        number: formData.number,
-        title: formData.title,
-        price: parseInt(formData.price) || 0,
+      const result = await createRound(selectedSeason, {
+        roundNumber: parseInt(formData.roundNumber),
+        name: formData.name,
+        roundValue: parseInt(formData.roundValue) || 0,
         status: formData.status,
         description: formData.description,
-        createdAt: new Date().toISOString(),
-      };
-      allRounds.push(newRound);
+      });
+
+      if (result.success) {
+        setShowModal(false);
+        loadRounds();
+      } else {
+        alert(result.error || '라운드 추가에 실패했습니다.');
+      }
     } else {
-      const index = allRounds.findIndex(r => r.id === editingRound.id);
-      if (index !== -1) {
-        allRounds[index] = {
-          ...allRounds[index],
-          number: formData.number,
-          title: formData.title,
-          // 수정 모드에서는 기존 금액 유지
-          status: formData.status,
-          description: formData.description,
-          updatedAt: new Date().toISOString(),
-        };
+      const result = await updateRound(editingRound.id, {
+        name: formData.name,
+        status: formData.status,
+        description: formData.description,
+      });
+
+      if (result.success) {
+        setShowModal(false);
+        loadRounds();
+      } else {
+        alert(result.error || '라운드 수정에 실패했습니다.');
       }
     }
 
-    saveToStorage(STORAGE_KEYS.ROUNDS, allRounds);
-    setShowModal(false);
-    loadRounds();
+    setSaving(false);
   };
 
   const getStatusBadge = (status) => {
@@ -195,7 +185,7 @@ export default function RoundManagement() {
         >
           {seasons.map((season) => (
             <option key={season.id} value={season.id}>
-              {season.name} - {season.title}
+              {season.name}
             </option>
           ))}
         </select>
@@ -218,7 +208,7 @@ export default function RoundManagement() {
           {/* 모바일 카드 레이아웃 */}
           <div className="sm:hidden space-y-3">
             {rounds.map((round) => {
-              const stats = getPaymentStats(round.id, round.seasonId);
+              const stats = getPaymentStats(round.id);
               return (
                 <div
                   key={round.id}
@@ -226,15 +216,15 @@ export default function RoundManagement() {
                 >
                   <div className="flex items-start justify-between gap-3 mb-3">
                     <div>
-                      <p className="text-gray-400 text-sm">{round.number}</p>
-                      <p className="text-white font-medium">{round.title}</p>
+                      <p className="text-gray-400 text-sm">{round.round_number}회차</p>
+                      <p className="text-white font-medium">{round.name}</p>
                     </div>
                     {getStatusBadge(round.status)}
                   </div>
                   <div className="flex items-center justify-between text-sm mb-3">
                     <span className="text-gray-500">참여비</span>
                     <span className="text-ruby-400 font-medium">
-                      {round.price === 0 ? '무료' : formatAmount(round.price)}
+                      {round.round_value === 0 ? '무료' : formatAmount(round.round_value)}
                     </span>
                   </div>
                   {stats.count > 0 && (
@@ -272,7 +262,7 @@ export default function RoundManagement() {
                 <thead className="bg-dark-700">
                   <tr>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-400">라운드</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-400">제목</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-400">이름</th>
                     <th className="px-4 py-3 text-right text-xs font-medium text-gray-400">참여비</th>
                     <th className="px-4 py-3 text-center text-xs font-medium text-gray-400">상태</th>
                     <th className="px-4 py-3 text-right text-xs font-medium text-gray-400">참여자</th>
@@ -282,18 +272,18 @@ export default function RoundManagement() {
                 </thead>
                 <tbody className="divide-y divide-dark-700">
                   {rounds.map((round) => {
-                    const stats = getPaymentStats(round.id, round.seasonId);
+                    const stats = getPaymentStats(round.id);
                     return (
                       <tr key={round.id} className="hover:bg-dark-700/50 transition-colors">
                         <td className="px-4 py-4">
-                          <span className="text-gray-400 text-sm">{round.number}</span>
+                          <span className="text-gray-400 text-sm">{round.round_number}회차</span>
                         </td>
                         <td className="px-4 py-4">
-                          <span className="text-white font-medium">{round.title}</span>
+                          <span className="text-white font-medium">{round.name}</span>
                         </td>
                         <td className="px-4 py-4 text-right">
-                          <span className={`font-medium ${round.price === 0 ? 'text-green-400' : 'text-ruby-400'}`}>
-                            {round.price === 0 ? '무료' : formatAmount(round.price)}
+                          <span className={`font-medium ${round.round_value === 0 ? 'text-green-400' : 'text-ruby-400'}`}>
+                            {round.round_value === 0 ? '무료' : formatAmount(round.round_value)}
                           </span>
                         </td>
                         <td className="px-4 py-4 text-center">
@@ -357,19 +347,20 @@ export default function RoundManagement() {
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-2">라운드 번호</label>
                 <input
-                  type="text"
-                  value={formData.number}
-                  onChange={(e) => setFormData({ ...formData, number: e.target.value })}
-                  placeholder="예: Round 1"
-                  className="w-full px-4 py-3 bg-dark-700 border border-dark-600 rounded-lg text-white focus:border-ruby-500 focus:outline-none"
+                  type="number"
+                  value={formData.roundNumber}
+                  onChange={(e) => setFormData({ ...formData, roundNumber: e.target.value })}
+                  placeholder="예: 1"
+                  disabled={modalType === 'edit'}
+                  className="w-full px-4 py-3 bg-dark-700 border border-dark-600 rounded-lg text-white focus:border-ruby-500 focus:outline-none disabled:opacity-50"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">제목</label>
+                <label className="block text-sm font-medium text-gray-300 mb-2">이름</label>
                 <input
                   type="text"
-                  value={formData.title}
-                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   placeholder="예: 체험 라운드"
                   className="w-full px-4 py-3 bg-dark-700 border border-dark-600 rounded-lg text-white focus:border-ruby-500 focus:outline-none"
                 />
@@ -380,8 +371,8 @@ export default function RoundManagement() {
                   <label className="block text-sm font-medium text-gray-300 mb-2">참여비 (원)</label>
                   <input
                     type="number"
-                    value={formData.price}
-                    onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                    value={formData.roundValue}
+                    onChange={(e) => setFormData({ ...formData, roundValue: e.target.value })}
                     placeholder="0"
                     className="w-full px-4 py-3 bg-dark-700 border border-dark-600 rounded-lg text-white focus:border-ruby-500 focus:outline-none"
                   />
@@ -418,9 +409,10 @@ export default function RoundManagement() {
                 </button>
                 <button
                   onClick={handleSaveRound}
-                  className="flex-1 py-3 bg-ruby-600 hover:bg-ruby-700 text-white rounded-lg transition-colors"
+                  disabled={saving}
+                  className="flex-1 py-3 bg-ruby-600 hover:bg-ruby-700 text-white rounded-lg transition-colors disabled:opacity-50"
                 >
-                  저장
+                  {saving ? '저장 중...' : '저장'}
                 </button>
               </div>
             </div>

@@ -1,21 +1,9 @@
 import { useState, useEffect } from 'react';
-import { STORAGE_KEYS } from '../../constants/exchangeConstants';
-
-// localStorage 헬퍼
-const getFromStorage = (key, defaultValue = []) => {
-  try {
-    const data = localStorage.getItem(key);
-    return data ? JSON.parse(data) : defaultValue;
-  } catch {
-    return defaultValue;
-  }
-};
-
-const formatAmount = (amount) => {
-  return new Intl.NumberFormat('ko-KR', { style: 'currency', currency: 'KRW' }).format(amount);
-};
+import { getSeasons, getRoundsBySeason, getPaymentsBySeason } from '../../api/seasonApi';
+import { formatAmount } from '../../utils/localStorage';
 
 const formatDate = (dateStr) => {
+  if (!dateStr) return '-';
   const date = new Date(dateStr);
   return date.toLocaleDateString('ko-KR', {
     year: 'numeric',
@@ -28,7 +16,9 @@ const formatDate = (dateStr) => {
 
 export default function PaymentManagement() {
   const [payments, setPayments] = useState([]);
+  const [allPayments, setAllPayments] = useState([]);
   const [seasons, setSeasons] = useState([]);
+  const [rounds, setRounds] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({
     seasonId: '',
@@ -47,55 +37,78 @@ export default function PaymentManagement() {
 
   useEffect(() => {
     applyFilters();
-  }, [filters]);
+  }, [filters, allPayments]);
 
-  const loadData = () => {
+  useEffect(() => {
+    if (filters.seasonId) {
+      loadRounds(filters.seasonId);
+    } else {
+      setRounds([]);
+    }
+  }, [filters.seasonId]);
+
+  const loadData = async () => {
     setLoading(true);
-    const seasonsData = getFromStorage(STORAGE_KEYS.SEASONS, []);
-    setSeasons(seasonsData);
-    applyFilters();
+
+    // 시즌 목록 로드
+    const seasonsResult = await getSeasons();
+    if (seasonsResult.success) {
+      setSeasons(seasonsResult.data);
+
+      // 모든 시즌의 결제 내역 로드
+      const allPaymentsData = [];
+      for (const season of seasonsResult.data) {
+        const paymentsResult = await getPaymentsBySeason(season.id);
+        if (paymentsResult.success) {
+          allPaymentsData.push(...paymentsResult.data.map(p => ({
+            ...p,
+            seasonName: season.name,
+          })));
+        }
+      }
+      // 최신순 정렬
+      allPaymentsData.sort((a, b) => new Date(b.paid_at) - new Date(a.paid_at));
+      setAllPayments(allPaymentsData);
+    }
+
     setLoading(false);
   };
 
+  const loadRounds = async (seasonId) => {
+    const result = await getRoundsBySeason(seasonId);
+    if (result.success) {
+      setRounds(result.data);
+    }
+  };
+
   const applyFilters = () => {
-    let allPayments = getFromStorage(STORAGE_KEYS.ROUND_PAYMENTS, []);
+    let filtered = [...allPayments];
 
     // 필터 적용
     if (filters.seasonId) {
-      allPayments = allPayments.filter(p => p.seasonId === filters.seasonId);
+      filtered = filtered.filter(p => p.season_id === filters.seasonId);
     }
     if (filters.roundId) {
-      allPayments = allPayments.filter(p => p.roundId === filters.roundId);
+      filtered = filtered.filter(p => p.round_id === filters.roundId);
     }
     if (filters.search) {
       const searchLower = filters.search.toLowerCase();
-      allPayments = allPayments.filter(p =>
-        p.userName?.toLowerCase().includes(searchLower) ||
-        p.userEmail?.toLowerCase().includes(searchLower) ||
+      filtered = filtered.filter(p =>
+        p.user_name?.toLowerCase().includes(searchLower) ||
+        p.user_email?.toLowerCase().includes(searchLower) ||
         p.id?.toLowerCase().includes(searchLower)
       );
     }
 
-    // 최신순 정렬
-    allPayments.sort((a, b) => new Date(b.paidAt) - new Date(a.paidAt));
-
-    setPayments(allPayments);
+    setPayments(filtered);
 
     // 통계 계산
-    const uniqueUsers = new Set(allPayments.map(p => p.userEmail));
+    const uniqueUsers = new Set(filtered.map(p => p.user_email));
     setStats({
-      totalCount: allPayments.length,
-      totalAmount: allPayments.reduce((sum, p) => sum + (p.amount || 0), 0),
+      totalCount: filtered.length,
+      totalAmount: filtered.reduce((sum, p) => sum + (p.amount || 0), 0),
       uniqueUsers: uniqueUsers.size,
     });
-  };
-
-  const getRounds = () => {
-    const rounds = getFromStorage(STORAGE_KEYS.ROUNDS, []);
-    if (filters.seasonId) {
-      return rounds.filter(r => r.seasonId === filters.seasonId);
-    }
-    return rounds;
   };
 
   const getStatusBadge = (status) => {
@@ -170,10 +183,11 @@ export default function PaymentManagement() {
               value={filters.roundId}
               onChange={(e) => setFilters({ ...filters, roundId: e.target.value })}
               className="w-full px-4 py-2.5 bg-dark-700 border border-dark-600 rounded-lg text-white focus:outline-none focus:border-ruby-500"
+              disabled={!filters.seasonId}
             >
               <option value="">전체 라운드</option>
-              {getRounds().map((round) => (
-                <option key={round.id} value={round.id}>{round.number} - {round.title}</option>
+              {rounds.map((round) => (
+                <option key={round.id} value={round.id}>{round.round_number}회차 - {round.name}</option>
               ))}
             </select>
           </div>
@@ -221,15 +235,15 @@ export default function PaymentManagement() {
               >
                 <div className="flex items-start justify-between gap-3 mb-3">
                   <div className="min-w-0 flex-1">
-                    <p className="text-white font-medium">{payment.userName}</p>
-                    <p className="text-gray-400 text-sm truncate">{payment.userEmail}</p>
+                    <p className="text-white font-medium">{payment.user_name}</p>
+                    <p className="text-gray-400 text-sm truncate">{payment.user_email}</p>
                   </div>
                   {getStatusBadge(payment.status)}
                 </div>
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
                     <span className="text-gray-500">라운드</span>
-                    <span className="text-white">{payment.roundTitle || payment.roundId}</span>
+                    <span className="text-white">{payment.round_name || payment.round_id}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-500">결제금액</span>
@@ -239,7 +253,7 @@ export default function PaymentManagement() {
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-500">결제일시</span>
-                    <span className="text-gray-300">{formatDate(payment.paidAt)}</span>
+                    <span className="text-gray-300">{formatDate(payment.paid_at)}</span>
                   </div>
                 </div>
                 <div className="mt-3 pt-3 border-t border-dark-600">
@@ -271,14 +285,14 @@ export default function PaymentManagement() {
                       </td>
                       <td className="px-4 py-4">
                         <div>
-                          <p className="text-white font-medium">{payment.userName}</p>
-                          <p className="text-gray-400 text-sm">{payment.userEmail}</p>
+                          <p className="text-white font-medium">{payment.user_name}</p>
+                          <p className="text-gray-400 text-sm">{payment.user_email}</p>
                         </div>
                       </td>
                       <td className="px-4 py-4">
                         <div>
-                          <p className="text-gray-400 text-xs">{payment.seasonId}</p>
-                          <p className="text-white">{payment.roundTitle || payment.roundId}</p>
+                          <p className="text-gray-400 text-xs">{payment.seasonName}</p>
+                          <p className="text-white">{payment.round_name || payment.round_id}</p>
                         </div>
                       </td>
                       <td className="px-4 py-4 text-right">
@@ -290,7 +304,7 @@ export default function PaymentManagement() {
                         {getStatusBadge(payment.status)}
                       </td>
                       <td className="px-4 py-4 text-right">
-                        <span className="text-gray-300 text-sm">{formatDate(payment.paidAt)}</span>
+                        <span className="text-gray-300 text-sm">{formatDate(payment.paid_at)}</span>
                       </td>
                     </tr>
                   ))}

@@ -1,23 +1,6 @@
 import { useState, useEffect } from 'react';
-import { STORAGE_KEYS } from '../../constants/exchangeConstants';
-
-const getFromStorage = (key, defaultValue = []) => {
-  try {
-    const data = localStorage.getItem(key);
-    return data ? JSON.parse(data) : defaultValue;
-  } catch {
-    return defaultValue;
-  }
-};
-
-const saveToStorage = (key, data) => {
-  localStorage.setItem(key, JSON.stringify(data));
-};
-
-const formatAmount = (amount) => {
-  if (!amount && amount !== 0) return '-';
-  return new Intl.NumberFormat('ko-KR', { style: 'currency', currency: 'KRW' }).format(amount);
-};
+import { getSeasons, getRoundsBySeason, updateRound } from '../../api/seasonApi';
+import { formatAmount } from '../../utils/localStorage';
 
 export default function SeasonPriceManagement() {
   const [seasons, setSeasons] = useState([]);
@@ -27,6 +10,7 @@ export default function SeasonPriceManagement() {
   const [editedPrices, setEditedPrices] = useState({});
   const [editedTitles, setEditedTitles] = useState({});
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -38,35 +22,36 @@ export default function SeasonPriceManagement() {
     }
   }, [selectedSeason]);
 
-  const loadData = () => {
+  const loadData = async () => {
     setLoading(true);
-    const seasonsData = getFromStorage(STORAGE_KEYS.SEASONS, []);
-    setSeasons(seasonsData);
-    if (seasonsData.length > 0) {
-      setSelectedSeason(seasonsData[0].id);
+    const result = await getSeasons();
+    if (result.success && result.data.length > 0) {
+      setSeasons(result.data);
+      setSelectedSeason(result.data[0].id);
     }
     setLoading(false);
   };
 
-  const loadRounds = () => {
-    const allRounds = getFromStorage(STORAGE_KEYS.ROUNDS, []);
-    const seasonRounds = allRounds.filter(r => r.seasonId === selectedSeason);
-    seasonRounds.sort((a, b) => {
-      const numA = parseInt(a.id.replace('R', ''));
-      const numB = parseInt(b.id.replace('R', ''));
-      return numA - numB;
-    });
-    setRounds(seasonRounds);
-    // Initialize edited values with current values
-    const prices = {};
-    const titles = {};
-    seasonRounds.forEach(r => {
-      prices[r.id] = r.price.toString();
-      titles[r.id] = r.title || '';
-    });
-    setEditedPrices(prices);
-    setEditedTitles(titles);
-    setSaveSuccess(false);
+  const loadRounds = async () => {
+    const result = await getRoundsBySeason(selectedSeason);
+    if (result.success) {
+      // Sort by round number
+      const sortedRounds = [...result.data].sort((a, b) => {
+        return (a.round_number || 0) - (b.round_number || 0);
+      });
+      setRounds(sortedRounds);
+
+      // Initialize edited values with current values
+      const prices = {};
+      const titles = {};
+      sortedRounds.forEach(r => {
+        prices[r.id] = (r.round_value || 0).toString();
+        titles[r.id] = r.name || '';
+      });
+      setEditedPrices(prices);
+      setEditedTitles(titles);
+      setSaveSuccess(false);
+    }
   };
 
   const handlePriceChange = (roundId, value) => {
@@ -80,48 +65,52 @@ export default function SeasonPriceManagement() {
     setSaveSuccess(false);
   };
 
-  const handleSingleSave = (roundId) => {
-    const allRounds = getFromStorage(STORAGE_KEYS.ROUNDS, []);
-    const index = allRounds.findIndex(r => r.id === roundId);
-    if (index !== -1) {
-      allRounds[index].price = parseInt(editedPrices[roundId]) || 0;
-      allRounds[index].title = editedTitles[roundId] || allRounds[index].title;
-      allRounds[index].updatedAt = new Date().toISOString();
-      saveToStorage(STORAGE_KEYS.ROUNDS, allRounds);
-      loadRounds();
-    }
-  };
-
-  const handleBulkSave = () => {
-    const allRounds = getFromStorage(STORAGE_KEYS.ROUNDS, []);
-    let changed = false;
-
-    rounds.forEach(round => {
-      const newPrice = parseInt(editedPrices[round.id]) || 0;
-      const newTitle = editedTitles[round.id] || '';
-      if (newPrice !== round.price || newTitle !== round.title) {
-        const index = allRounds.findIndex(r => r.id === round.id);
-        if (index !== -1) {
-          allRounds[index].price = newPrice;
-          allRounds[index].title = newTitle || allRounds[index].title;
-          allRounds[index].updatedAt = new Date().toISOString();
-          changed = true;
-        }
-      }
+  const handleSingleSave = async (roundId) => {
+    setSaving(true);
+    const result = await updateRound(roundId, {
+      roundValue: parseInt(editedPrices[roundId]) || 0,
+      name: editedTitles[roundId],
     });
 
-    if (changed) {
-      saveToStorage(STORAGE_KEYS.ROUNDS, allRounds);
+    if (result.success) {
       loadRounds();
+    } else {
+      alert(result.error || '저장에 실패했습니다.');
     }
-    setSaveSuccess(true);
-    setTimeout(() => setSaveSuccess(false), 3000);
+    setSaving(false);
+  };
+
+  const handleBulkSave = async () => {
+    setSaving(true);
+    let hasError = false;
+
+    for (const round of rounds) {
+      if (isRoundChanged(round)) {
+        const result = await updateRound(round.id, {
+          roundValue: parseInt(editedPrices[round.id]) || 0,
+          name: editedTitles[round.id],
+        });
+        if (!result.success) {
+          hasError = true;
+        }
+      }
+    }
+
+    if (hasError) {
+      alert('일부 항목 저장에 실패했습니다.');
+    } else {
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 3000);
+    }
+
+    await loadRounds();
+    setSaving(false);
   };
 
   const isRoundChanged = (round) => {
     const editedPrice = parseInt(editedPrices[round.id]) || 0;
     const editedTitle = editedTitles[round.id] || '';
-    return editedPrice !== round.price || editedTitle !== round.title;
+    return editedPrice !== (round.round_value || 0) || editedTitle !== round.name;
   };
 
   const hasChanges = () => {
@@ -154,7 +143,7 @@ export default function SeasonPriceManagement() {
         </div>
         <button
           onClick={handleBulkSave}
-          disabled={!hasChanges() && !saveSuccess}
+          disabled={(!hasChanges() && !saveSuccess) || saving}
           className={`px-5 py-2.5 rounded-lg transition-colors flex items-center gap-2 font-medium ${
             saveSuccess
               ? 'bg-green-600 text-white'
@@ -163,7 +152,12 @@ export default function SeasonPriceManagement() {
                 : 'bg-dark-600 text-gray-500 cursor-not-allowed'
           }`}
         >
-          {saveSuccess ? (
+          {saving ? (
+            <>
+              <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+              저장 중...
+            </>
+          ) : saveSuccess ? (
             <>
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
@@ -191,7 +185,7 @@ export default function SeasonPriceManagement() {
         >
           {seasons.map((season) => (
             <option key={season.id} value={season.id}>
-              {season.name} - {season.title}
+              {season.name}
             </option>
           ))}
         </select>
@@ -219,19 +213,19 @@ export default function SeasonPriceManagement() {
           <div className="bg-dark-800 border border-dark-600 rounded-xl p-4">
             <p className="text-gray-400 text-sm">무료 라운드</p>
             <p className="text-2xl font-bold text-green-400 mt-1">
-              {rounds.filter(r => r.price === 0).length}개
+              {rounds.filter(r => (r.round_value || 0) === 0).length}개
             </p>
           </div>
           <div className="bg-dark-800 border border-dark-600 rounded-xl p-4">
             <p className="text-gray-400 text-sm">유료 라운드</p>
             <p className="text-2xl font-bold text-ruby-400 mt-1">
-              {rounds.filter(r => r.price > 0).length}개
+              {rounds.filter(r => (r.round_value || 0) > 0).length}개
             </p>
           </div>
           <div className="bg-dark-800 border border-dark-600 rounded-xl p-4">
             <p className="text-gray-400 text-sm">전체 참여비 합계</p>
             <p className="text-2xl font-bold text-ruby-400 mt-1">
-              {formatAmount(rounds.reduce((sum, r) => sum + r.price, 0))}
+              {formatAmount(rounds.reduce((sum, r) => sum + (r.round_value || 0), 0))}
             </p>
           </div>
         </div>
@@ -273,7 +267,7 @@ export default function SeasonPriceManagement() {
                   }`}
                 >
                   <div className="flex items-start justify-between gap-3 mb-3">
-                    <p className="text-gray-400 text-sm">{round.number}</p>
+                    <p className="text-gray-400 text-sm">{round.round_number}회차</p>
                     {getStatusBadge(round.status)}
                   </div>
                   <div className="space-y-3">
@@ -285,14 +279,14 @@ export default function SeasonPriceManagement() {
                         onChange={(e) => handleTitleChange(round.id, e.target.value)}
                         placeholder="라운드 제목"
                         className={`w-full px-3 py-2 bg-dark-700 border rounded-lg text-white text-sm focus:outline-none ${
-                          (editedTitles[round.id] || '') !== round.title ? 'border-ruby-500/50 focus:border-ruby-500' : 'border-dark-600 focus:border-ruby-500'
+                          (editedTitles[round.id] || '') !== round.name ? 'border-ruby-500/50 focus:border-ruby-500' : 'border-dark-600 focus:border-ruby-500'
                         }`}
                       />
                     </div>
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-gray-500">현재 금액</span>
-                      <span className={`font-medium ${round.price === 0 ? 'text-green-400' : 'text-ruby-400'}`}>
-                        {round.price === 0 ? '무료' : formatAmount(round.price)}
+                      <span className={`font-medium ${(round.round_value || 0) === 0 ? 'text-green-400' : 'text-ruby-400'}`}>
+                        {(round.round_value || 0) === 0 ? '무료' : formatAmount(round.round_value)}
                       </span>
                     </div>
                     <div>
@@ -305,12 +299,12 @@ export default function SeasonPriceManagement() {
                           onChange={(e) => handlePriceChange(round.id, e.target.value)}
                           placeholder="0"
                           className={`flex-1 px-3 py-2 bg-dark-700 border rounded-lg text-white text-sm focus:outline-none ${
-                            editedPrice !== round.price ? 'border-ruby-500/50 focus:border-ruby-500' : 'border-dark-600 focus:border-ruby-500'
+                            editedPrice !== (round.round_value || 0) ? 'border-ruby-500/50 focus:border-ruby-500' : 'border-dark-600 focus:border-ruby-500'
                           }`}
                         />
                         <button
                           onClick={() => handleSingleSave(round.id)}
-                          disabled={!isChanged}
+                          disabled={!isChanged || saving}
                           className={`px-3 py-2 rounded-lg text-sm transition-colors ${
                             isChanged
                               ? 'bg-ruby-600 hover:bg-ruby-700 text-white'
@@ -320,9 +314,9 @@ export default function SeasonPriceManagement() {
                           저장
                         </button>
                       </div>
-                      {editedPrice !== round.price && (
+                      {editedPrice !== (round.round_value || 0) && (
                         <p className="text-ruby-400 text-xs mt-1">
-                          {formatAmount(round.price)} → {formatAmount(editedPrice)}
+                          {formatAmount(round.round_value || 0)} → {formatAmount(editedPrice)}
                         </p>
                       )}
                     </div>
@@ -350,7 +344,7 @@ export default function SeasonPriceManagement() {
                   {rounds.map((round) => {
                     const editedPrice = parseInt(editedPrices[round.id]) || 0;
                     const isChanged = isRoundChanged(round);
-                    const isTitleChanged = (editedTitles[round.id] || '') !== round.title;
+                    const isTitleChanged = (editedTitles[round.id] || '') !== round.name;
                     return (
                       <tr
                         key={round.id}
@@ -359,7 +353,7 @@ export default function SeasonPriceManagement() {
                         }`}
                       >
                         <td className="px-4 py-4">
-                          <span className="text-gray-400 text-sm">{round.number}</span>
+                          <span className="text-gray-400 text-sm">{round.round_number}회차</span>
                         </td>
                         <td className="px-4 py-4">
                           <input
@@ -379,8 +373,8 @@ export default function SeasonPriceManagement() {
                           {getStatusBadge(round.status)}
                         </td>
                         <td className="px-4 py-4 text-right">
-                          <span className={`font-medium ${round.price === 0 ? 'text-green-400' : 'text-ruby-400'}`}>
-                            {round.price === 0 ? '무료' : formatAmount(round.price)}
+                          <span className={`font-medium ${(round.round_value || 0) === 0 ? 'text-green-400' : 'text-ruby-400'}`}>
+                            {(round.round_value || 0) === 0 ? '무료' : formatAmount(round.round_value)}
                           </span>
                         </td>
                         <td className="px-4 py-4">
@@ -405,7 +399,7 @@ export default function SeasonPriceManagement() {
                         <td className="px-4 py-4 text-center">
                           <button
                             onClick={() => handleSingleSave(round.id)}
-                            disabled={!isChanged}
+                            disabled={!isChanged || saving}
                             className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${
                               isChanged
                                 ? 'bg-ruby-600 hover:bg-ruby-700 text-white'
@@ -441,9 +435,10 @@ export default function SeasonPriceManagement() {
               </div>
               <button
                 onClick={handleBulkSave}
-                className="px-4 py-2 bg-ruby-600 hover:bg-ruby-700 text-white rounded-lg text-sm transition-colors"
+                disabled={saving}
+                className="px-4 py-2 bg-ruby-600 hover:bg-ruby-700 text-white rounded-lg text-sm transition-colors disabled:opacity-50"
               >
-                일괄 저장
+                {saving ? '저장 중...' : '일괄 저장'}
               </button>
             </div>
           )}

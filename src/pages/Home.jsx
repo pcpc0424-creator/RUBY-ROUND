@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { STORAGE_KEYS } from '../constants/exchangeConstants';
+import { seasonApi } from '../api/apiClient';
 
 // Floating Ruby Particles Component
 function FloatingParticles() {
@@ -35,16 +35,18 @@ function HeroSection() {
   const [activeSeason, setActiveSeason] = useState(null);
 
   useEffect(() => {
-    try {
-      const seasonsData = localStorage.getItem(STORAGE_KEYS.SEASONS);
-      if (seasonsData) {
-        const seasons = JSON.parse(seasonsData);
-        const active = seasons.find(s => s.status === 'active') || seasons[0];
-        setActiveSeason(active);
+    const loadSeason = async () => {
+      try {
+        const seasons = await seasonApi.getSeasons();
+        if (seasons && seasons.length > 0) {
+          const active = seasons.find(s => s.status === 'active') || seasons[0];
+          setActiveSeason(active);
+        }
+      } catch {
+        // Use default if error
       }
-    } catch {
-      // Use default if error
-    }
+    };
+    loadSeason();
   }, []);
 
   const seasonName = activeSeason?.name || 'Season 01';

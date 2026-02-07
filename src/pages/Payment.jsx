@@ -1,24 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { STORAGE_KEYS } from '../constants/exchangeConstants';
+import { seasonApi } from '../api/apiClient';
 
 // 토스페이먼츠 클라이언트 키
 const TOSS_CLIENT_KEY = 'live_gck_E92LAa5PVbPzPdypLX9B87YmpXyJ';
-
-// Helper to get active season ID
-const getActiveSeasonId = () => {
-  try {
-    const seasonsData = localStorage.getItem(STORAGE_KEYS.SEASONS);
-    if (seasonsData) {
-      const seasons = JSON.parse(seasonsData);
-      const active = seasons.find(s => s.status === 'active') || seasons[0];
-      return active?.id || 'SEASON-1';
-    }
-  } catch {
-    // fallback
-  }
-  return 'SEASON-1';
-};
 
 const defaultRoundsData = [
   { id: 'R1', number: 'Round 1', title: '체험 라운드', price: 0 },
@@ -43,34 +28,32 @@ export default function Payment() {
   const userEmail = localStorage.getItem('userEmail') || 'test@ruby.com';
 
   useEffect(() => {
-    // Try to load from localStorage first
-    try {
-      const seasonsData = localStorage.getItem(STORAGE_KEYS.SEASONS);
-      const storedRoundsData = localStorage.getItem(STORAGE_KEYS.ROUNDS);
+    const loadRound = async () => {
+      try {
+        const seasons = await seasonApi.getSeasons();
+        if (seasons && seasons.length > 0) {
+          const activeSeason = seasons.find(s => s.status === 'active') || seasons[0];
 
-      if (seasonsData && storedRoundsData) {
-        const seasons = JSON.parse(seasonsData);
-        const allRounds = JSON.parse(storedRoundsData);
-        const activeSeason = seasons.find(s => s.status === 'active') || seasons[0];
-
-        if (activeSeason) {
-          const seasonRounds = allRounds.filter(r => r.seasonId === activeSeason.id);
-          const foundRound = seasonRounds.find(r => r.id === id || r.id === `R${id}`);
-          if (foundRound) {
-            setRound({ ...foundRound, seasonId: activeSeason.id });
-            return;
+          if (activeSeason) {
+            const seasonRounds = await seasonApi.getRounds(activeSeason.id);
+            const foundRound = seasonRounds?.find(r => r.id === id || r.id === `R${id}`);
+            if (foundRound) {
+              setRound({ ...foundRound, seasonId: activeSeason.id });
+              return;
+            }
           }
         }
+      } catch {
+        // Fall through to default
       }
-    } catch {
-      // Fall through to default
-    }
 
-    // Fallback to default data
-    const foundRound = defaultRoundsData.find(r => r.id === id || r.id === `R${id}`);
-    if (foundRound) {
-      setRound({ ...foundRound, seasonId: getActiveSeasonId() });
-    }
+      // Fallback to default data
+      const foundRound = defaultRoundsData.find(r => r.id === id || r.id === `R${id}`);
+      if (foundRound) {
+        setRound({ ...foundRound, seasonId: 'SEASON-1' });
+      }
+    };
+    loadRound();
   }, [id]);
 
   const handleTossPayment = async () => {

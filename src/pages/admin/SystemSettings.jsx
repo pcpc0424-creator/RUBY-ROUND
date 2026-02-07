@@ -5,7 +5,7 @@ import {
   getAdminAuth,
   createAuditLog,
 } from '../../api/exchangeApi';
-import { ADMIN_ROLES } from '../../constants/exchangeConstants';
+import { ADMIN_ROLES, STORAGE_KEYS } from '../../constants/exchangeConstants';
 
 export default function SystemSettings() {
   const [settings, setSettings] = useState({
@@ -82,7 +82,138 @@ export default function SystemSettings() {
     { key: 'exchange', label: '교환금', icon: '💰' },
     { key: 'notification', label: '알림', icon: '🔔' },
     { key: 'rbac', label: '권한/승인', icon: '🔐' },
+    { key: 'data', label: '데이터 관리', icon: '🗑️' },
   ];
+
+  // 데이터 초기화 관련 정의
+  const dataCategories = [
+    {
+      key: 'users',
+      label: '사용자 데이터',
+      description: '사용자 계정, 잔액, 성인인증 정보',
+      storageKeys: [STORAGE_KEYS.USERS, STORAGE_KEYS.USER_EXCHANGE_BALANCE, STORAGE_KEYS.ADULT_VERIFICATIONS, STORAGE_KEYS.VERIFICATION_EVIDENCE],
+      danger: true
+    },
+    {
+      key: 'exchanges',
+      label: '교환 신청 데이터',
+      description: '교환 신청 내역, 원장',
+      storageKeys: [STORAGE_KEYS.EXCHANGE_APPLICATIONS, STORAGE_KEYS.EXCHANGE_LEDGER],
+      danger: true
+    },
+    {
+      key: 'seasons',
+      label: '시즌/라운드 데이터',
+      description: '시즌, 라운드, 결제, 정산 정보',
+      storageKeys: [STORAGE_KEYS.SEASONS, STORAGE_KEYS.ROUNDS, STORAGE_KEYS.ROUND_PAYMENTS, STORAGE_KEYS.SEASON_SETTLEMENTS, STORAGE_KEYS.ROUND_RESULTS],
+      danger: true
+    },
+    {
+      key: 'rewards',
+      label: '보상/쿠폰 데이터',
+      description: '보상, 당첨, 쿠폰 정보',
+      storageKeys: [STORAGE_KEYS.REWARDS, STORAGE_KEYS.COUPONS, STORAGE_KEYS.COUPON_USAGES],
+      danger: false
+    },
+    {
+      key: 'deliveries',
+      label: '배송 데이터',
+      description: '배송 정보',
+      storageKeys: [STORAGE_KEYS.DELIVERIES],
+      danger: false
+    },
+    {
+      key: 'logs',
+      label: '감사 로그',
+      description: '관리자 작업 로그',
+      storageKeys: [STORAGE_KEYS.AUDIT_LOGS],
+      danger: false
+    },
+  ];
+
+  const [deleting, setDeleting] = useState(null);
+
+  const handleDeleteData = async (category) => {
+    if (!isCeo) {
+      alert('대표 계정만 데이터를 삭제할 수 있습니다.');
+      return;
+    }
+
+    const confirmMessage = category.danger
+      ? `⚠️ 경고: "${category.label}"을(를) 삭제하시겠습니까?\n\n이 작업은 되돌릴 수 없습니다!`
+      : `"${category.label}"을(를) 삭제하시겠습니까?`;
+
+    if (!confirm(confirmMessage)) return;
+
+    if (category.danger) {
+      const doubleConfirm = prompt(`정말 삭제하려면 "${category.label}"을(를) 입력하세요:`);
+      if (doubleConfirm !== category.label) {
+        alert('입력이 일치하지 않습니다. 삭제가 취소되었습니다.');
+        return;
+      }
+    }
+
+    setDeleting(category.key);
+    try {
+      category.storageKeys.forEach(key => {
+        if (key) localStorage.removeItem(key);
+      });
+
+      await createAuditLog({
+        action: 'delete',
+        targetType: 'data',
+        targetId: category.key,
+        details: `데이터 삭제: ${category.label}`,
+        adminName: auth?.name || 'Admin',
+      });
+
+      alert(`${category.label}이(가) 삭제되었습니다.`);
+    } catch (error) {
+      alert('삭제 중 오류가 발생했습니다.');
+    }
+    setDeleting(null);
+  };
+
+  const handleDeleteAllData = async () => {
+    if (!isCeo) {
+      alert('대표 계정만 데이터를 삭제할 수 있습니다.');
+      return;
+    }
+
+    if (!confirm('⚠️ 경고: 모든 데이터를 삭제하시겠습니까?\n\n관리자 계정을 제외한 모든 데이터가 삭제됩니다.\n이 작업은 되돌릴 수 없습니다!')) return;
+
+    const confirmText = prompt('정말 모든 데이터를 삭제하려면 "전체 삭제"를 입력하세요:');
+    if (confirmText !== '전체 삭제') {
+      alert('입력이 일치하지 않습니다. 삭제가 취소되었습니다.');
+      return;
+    }
+
+    setDeleting('all');
+    try {
+      // 관리자 인증 정보는 유지
+      const adminAuth = localStorage.getItem(STORAGE_KEYS.ADMIN_AUTH);
+
+      // 모든 rubyround_ 키 삭제
+      Object.values(STORAGE_KEYS).forEach(key => {
+        if (key && key !== STORAGE_KEYS.ADMIN_AUTH) {
+          localStorage.removeItem(key);
+        }
+      });
+
+      await createAuditLog({
+        action: 'delete',
+        targetType: 'data',
+        targetId: 'all',
+        details: '전체 데이터 삭제',
+        adminName: auth?.name || 'Admin',
+      });
+
+      alert('모든 데이터가 삭제되었습니다. (관리자 계정 제외)');
+    } catch (error) {
+      alert('삭제 중 오류가 발생했습니다.');
+    }
+    setDeleting(null);
+  };
 
   if (loading) {
     return (
@@ -458,6 +589,92 @@ export default function SystemSettings() {
                       </div>
                     </div>
                   ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* 데이터 관리 */}
+          {activeTab === 'data' && (
+            <div className="space-y-6">
+              {!isCeo && (
+                <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-4">
+                  <p className="text-yellow-400 text-sm">대표 계정만 데이터를 삭제할 수 있습니다.</p>
+                </div>
+              )}
+
+              <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4">
+                <p className="text-red-400 font-medium">주의사항</p>
+                <p className="text-red-300 text-sm mt-1">
+                  삭제된 데이터는 복구할 수 없습니다. 신중하게 진행해주세요.
+                </p>
+              </div>
+
+              {/* 개별 데이터 삭제 */}
+              <div>
+                <h3 className="text-white font-medium mb-4">개별 데이터 삭제</h3>
+                <div className="space-y-3">
+                  {dataCategories.map((category) => (
+                    <div
+                      key={category.key}
+                      className={`flex items-center justify-between p-4 rounded-xl ${
+                        category.danger ? 'bg-red-500/5 border border-red-500/20' : 'bg-dark-700/50'
+                      }`}
+                    >
+                      <div>
+                        <p className="text-white font-medium flex items-center gap-2">
+                          {category.label}
+                          {category.danger && (
+                            <span className="text-xs text-red-400 bg-red-500/20 px-2 py-0.5 rounded">위험</span>
+                          )}
+                        </p>
+                        <p className="text-gray-400 text-sm">{category.description}</p>
+                      </div>
+                      <button
+                        onClick={() => handleDeleteData(category)}
+                        disabled={!isCeo || deleting === category.key}
+                        className={`px-4 py-2 rounded-lg text-sm transition-colors flex items-center gap-2 disabled:opacity-50 ${
+                          category.danger
+                            ? 'bg-red-600 hover:bg-red-700 text-white'
+                            : 'bg-dark-600 hover:bg-dark-500 text-gray-300'
+                        }`}
+                      >
+                        {deleting === category.key ? (
+                          <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                        ) : (
+                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        )}
+                        삭제
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* 전체 데이터 삭제 */}
+              <div className="border-t border-dark-600 pt-6">
+                <h3 className="text-red-400 font-medium mb-4">전체 데이터 삭제</h3>
+                <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-6">
+                  <p className="text-white font-medium mb-2">모든 데이터 초기화</p>
+                  <p className="text-gray-400 text-sm mb-4">
+                    관리자 계정을 제외한 모든 데이터(사용자, 교환 신청, 시즌, 라운드, 결제, 보상 등)가 삭제됩니다.
+                  </p>
+                  <button
+                    onClick={handleDeleteAllData}
+                    disabled={!isCeo || deleting === 'all'}
+                    className="px-6 py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors flex items-center gap-2 disabled:opacity-50"
+                  >
+                    {deleting === 'all' ? (
+                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                    ) : (
+                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                      </svg>
+                    )}
+                    전체 데이터 삭제
+                  </button>
                 </div>
               </div>
             </div>

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { STORAGE_KEYS } from '../constants/exchangeConstants';
+import { publicApi } from '../api/apiClient';
 
 export default function Contact() {
   const [formData, setFormData] = useState({
@@ -21,35 +21,34 @@ export default function Contact() {
     '기타 문의',
   ];
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // localStorage에 문의 저장
-    const inquiries = JSON.parse(localStorage.getItem(STORAGE_KEYS.CONTACT_INQUIRIES) || '[]');
-    const newInquiry = {
-      id: `INQ-${Date.now()}`,
-      category: formData.category,
-      name: formData.name,
-      email: formData.email,
-      phone: formData.phone,
-      title: formData.title,
-      content: formData.content,
-      status: 'new',
-      createdAt: new Date().toISOString(),
-    };
-    inquiries.unshift(newInquiry);
-    localStorage.setItem(STORAGE_KEYS.CONTACT_INQUIRIES, JSON.stringify(inquiries));
+    try {
+      // API를 통해 문의 저장
+      await publicApi.submitInquiry({
+        category: formData.category,
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone,
+        title: formData.title,
+        content: formData.content,
+      });
 
-    setSubmitted(true);
-    setFormData({
-      category: '',
-      name: '',
-      email: '',
-      phone: '',
-      title: '',
-      content: '',
-      agreePrivacy: false,
-    });
+      setSubmitted(true);
+      setFormData({
+        category: '',
+        name: '',
+        email: '',
+        phone: '',
+        title: '',
+        content: '',
+        agreePrivacy: false,
+      });
+    } catch (error) {
+      console.error('문의 제출 오류:', error);
+      alert('문의 접수 중 오류가 발생했습니다. 다시 시도해주세요.');
+    }
   };
 
   return (

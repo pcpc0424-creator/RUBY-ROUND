@@ -1,22 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { createRoundPayment } from '../api/seasonApi';
-import { STORAGE_KEYS } from '../constants/exchangeConstants';
-
-// Helper to get active season ID
-const getActiveSeasonId = () => {
-  try {
-    const seasonsData = localStorage.getItem(STORAGE_KEYS.SEASONS);
-    if (seasonsData) {
-      const seasons = JSON.parse(seasonsData);
-      const active = seasons.find(s => s.status === 'active') || seasons[0];
-      return active?.id || 'SEASON-1';
-    }
-  } catch {
-    // fallback
-  }
-  return 'SEASON-1';
-};
+import { seasonApi } from '../api/apiClient';
 
 const defaultRounds = [
   {
@@ -26,7 +11,7 @@ const defaultRounds = [
     price: 0,
     status: 'completed',
     participants: 1250,
-    seasonId: getActiveSeasonId(),
+    seasonId: 'SEASON-1',
     description: '무료 체험 라운드 - 실물 보상은 제공되지 않으며 시즌 누적 정보로만 반영됩니다.',
     details: '시즌의 세계관과 보석 채굴 구조를 체험해보세요. 무료로 참여할 수 있으며, 시즌 참여 경험을 쌓을 수 있습니다.',
   },
@@ -37,7 +22,7 @@ const defaultRounds = [
     price: 500000,
     status: 'completed',
     participants: 890,
-    seasonId: getActiveSeasonId(),
+    seasonId: 'SEASON-1',
     description: '참여비는 루비 보석 악세사리 구매를 위한 예약금입니다.',
     details: '보석 탐사의 첫 단계입니다. 기본 채굴이 시작되며, 초급 원석에 접근할 수 있습니다.',
   },
@@ -48,7 +33,7 @@ const defaultRounds = [
     price: 1000000,
     status: 'active',
     participants: 567,
-    seasonId: getActiveSeasonId(),
+    seasonId: 'SEASON-1',
     description: '참여비는 루비 보석 악세사리 구매를 위한 예약금입니다.',
     details: '본격적인 보석 발굴 단계입니다. 중급 원석에 접근하며, 보석의 품질이 향상됩니다.',
   },
@@ -59,7 +44,7 @@ const defaultRounds = [
     price: 1800000,
     status: 'upcoming',
     participants: 0,
-    seasonId: getActiveSeasonId(),
+    seasonId: 'SEASON-1',
     description: '참여비는 루비 보석 악세사리 구매를 위한 예약금입니다.',
     details: '더 깊은 화물 레이어를 개봉합니다. 보석의 크기와 밀도가 이전 라운드보다 증가합니다.',
   },
@@ -69,7 +54,7 @@ const defaultRounds = [
     title: 'Core Mining',
     price: 2500000,
     status: 'upcoming',
-    seasonId: getActiveSeasonId(),
+    seasonId: 'SEASON-1',
     participants: 0,
     description: '참여비는 루비 보석 악세사리 구매를 위한 예약금입니다.',
     details: '핵심 채굴 구역에 진입합니다. 희귀 원석의 발견 확률이 크게 상승합니다.',
@@ -81,7 +66,7 @@ const defaultRounds = [
     price: 3500000,
     status: 'upcoming',
     participants: 0,
-    seasonId: getActiveSeasonId(),
+    seasonId: 'SEASON-1',
     description: '참여비는 루비 보석 악세사리 구매를 위한 예약금입니다.',
     details: '루비 광맥에 접근합니다. 고급 루비 원석을 채굴할 수 있는 기회가 열립니다.',
   },
@@ -92,7 +77,7 @@ const defaultRounds = [
     price: 5000000,
     status: 'upcoming',
     participants: 0,
-    seasonId: getActiveSeasonId(),
+    seasonId: 'SEASON-1',
     description: '참여비는 루비 보석 악세사리 구매를 위한 예약금입니다.',
     details: '시즌의 마지막 라운드입니다. 최고급 보석의 최종 추출이 이루어집니다.',
   },
@@ -306,23 +291,21 @@ export default function Rounds() {
   const [selectedRound, setSelectedRound] = useState(null);
 
   useEffect(() => {
-    // Load rounds from localStorage based on active season
-    try {
-      const seasonsData = localStorage.getItem(STORAGE_KEYS.SEASONS);
-      const roundsData = localStorage.getItem(STORAGE_KEYS.ROUNDS);
-
-      if (seasonsData && roundsData) {
-        const seasons = JSON.parse(seasonsData);
-        const allRounds = JSON.parse(roundsData);
+    const loadRounds = async () => {
+      try {
+        const seasons = await seasonApi.getSeasons();
+        if (!seasons || seasons.length === 0) {
+          setSelectedRound(defaultRounds.find(r => r.status === 'active') || defaultRounds[0]);
+          return;
+        }
 
         // Find active season
         const activeSeason = seasons.find(s => s.status === 'active') || seasons[0];
 
         if (activeSeason) {
-          // Filter rounds for active season
-          const seasonRounds = allRounds.filter(r => r.seasonId === activeSeason.id);
+          const seasonRounds = await seasonApi.getRounds(activeSeason.id);
 
-          if (seasonRounds.length > 0) {
+          if (seasonRounds && seasonRounds.length > 0) {
             // Sort by round number
             seasonRounds.sort((a, b) => {
               const numA = parseInt(a.id?.replace(/[^0-9]/g, '') || '0');
@@ -335,13 +318,14 @@ export default function Rounds() {
             return;
           }
         }
+      } catch {
+        // Use default rounds
       }
-    } catch {
-      // Use default rounds
-    }
 
-    // Fallback to default rounds
-    setSelectedRound(defaultRounds.find(r => r.status === 'active') || defaultRounds[0]);
+      // Fallback to default rounds
+      setSelectedRound(defaultRounds.find(r => r.status === 'active') || defaultRounds[0]);
+    };
+    loadRounds();
   }, []);
 
   // 결제 처리 함수

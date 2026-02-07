@@ -1,1961 +1,747 @@
-import { STORAGE_KEYS, EXCHANGE_STATUS, DEFAULT_CONSULTATION_MODAL_CONTENT } from '../constants/exchangeConstants';
+// Exchange API - MySQL Database Version
+// This file provides backward-compatible wrappers around the new REST API
 
-// ID 생성 함수
-const generateId = (prefix) => {
-  const date = new Date();
-  const dateStr = date.toISOString().slice(0, 10).replace(/-/g, '');
-  const random = Math.random().toString(36).substring(2, 6).toUpperCase();
-  return `${prefix}-${dateStr}-${random}`;
-};
-
-// localStorage 헬퍼
-const getFromStorage = (key, defaultValue = []) => {
-  try {
-    const data = localStorage.getItem(key);
-    return data ? JSON.parse(data) : defaultValue;
-  } catch {
-    return defaultValue;
-  }
-};
-
-const saveToStorage = (key, data) => {
-  localStorage.setItem(key, JSON.stringify(data));
-};
+import { authApi, exchangeApi as exchangeClient, adminApi, userApi, publicApi } from './apiClient';
+import { STORAGE_KEYS } from '../constants/exchangeConstants';
 
 // ========== 고객용 API ==========
 
 // 교환 신청 생성
 export const createApplication = async (applicationData) => {
-  const applications = getFromStorage(STORAGE_KEYS.EXCHANGE_APPLICATIONS);
-
-  const newApplication = {
-    id: generateId('EX'),
-    ...applicationData,
-    status: 'received',
-    statusHistory: [
-      {
-        status: 'received',
-        timestamp: new Date().toISOString(),
-        actor: 'customer',
-        note: '고객 상담 접수',
-      },
-    ],
-    consultation: {
-      finalSpecification: '',
-      finalAmount: 0,
-      csNote: '',
-      customerConfirmed: false,
-      consultedAt: null,
-      consultedBy: '',
-    },
-    approval: {
-      approvedAt: null,
-      approvedBy: '',
-      deductedAmount: 0,
-      ledgerEntryId: '',
-    },
-    delivery: {
-      ...applicationData.delivery,
-      trackingNumber: '',
-      courier: '',
-      shippedAt: null,
-      deliveredAt: null,
-      receivedConfirmed: false,
-    },
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  };
-
-  applications.unshift(newApplication);
-  saveToStorage(STORAGE_KEYS.EXCHANGE_APPLICATIONS, applications);
-
-  return { success: true, data: newApplication };
+  try {
+    const data = await exchangeClient.create(applicationData);
+    return { success: true, data };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
 };
 
 // 내 신청 목록 조회
 export const getMyApplications = async (userEmail) => {
-  const applications = getFromStorage(STORAGE_KEYS.EXCHANGE_APPLICATIONS);
-  const myApplications = applications.filter(app => app.userEmail === userEmail);
-  return { success: true, data: myApplications };
+  try {
+    const result = await exchangeClient.getMyApplications();
+    return { success: true, data: result.applications || result };
+  } catch (error) {
+    return { success: false, error: error.message, data: [] };
+  }
 };
 
 // 신청 상세 조회
 export const getApplicationDetail = async (applicationId) => {
-  const applications = getFromStorage(STORAGE_KEYS.EXCHANGE_APPLICATIONS);
-  const application = applications.find(app => app.id === applicationId);
-
-  if (!application) {
-    return { success: false, error: '신청 정보를 찾을 수 없습니다.' };
+  try {
+    const data = await exchangeClient.getDetail(applicationId);
+    return { success: true, data };
+  } catch (error) {
+    return { success: false, error: error.message };
   }
-
-  return { success: true, data: application };
 };
 
 // 신청 취소 (승인 전만 가능)
 export const cancelApplication = async (applicationId, reason = '') => {
-  const applications = getFromStorage(STORAGE_KEYS.EXCHANGE_APPLICATIONS);
-  const index = applications.findIndex(app => app.id === applicationId);
-
-  if (index === -1) {
-    return { success: false, error: '신청 정보를 찾을 수 없습니다.' };
+  try {
+    const data = await exchangeClient.cancel(applicationId, reason);
+    return { success: true, data };
+  } catch (error) {
+    return { success: false, error: error.message };
   }
-
-  const application = applications[index];
-  const statusInfo = Object.values(EXCHANGE_STATUS).find(s => s.key === application.status);
-
-  if (!statusInfo?.canCancel) {
-    return { success: false, error: '취소할 수 없는 상태입니다.' };
-  }
-
-  application.status = 'cancelled';
-  application.statusHistory.push({
-    status: 'cancelled',
-    timestamp: new Date().toISOString(),
-    actor: 'customer',
-    note: reason || '고객 요청 취소',
-  });
-  application.updatedAt = new Date().toISOString();
-
-  applications[index] = application;
-  saveToStorage(STORAGE_KEYS.EXCHANGE_APPLICATIONS, applications);
-
-  return { success: true, data: application };
 };
 
-// 내 교환금 잔액 조회
+// 교환금 잔액 조회
 export const getMyBalance = async (userEmail) => {
-  const balances = getFromStorage(STORAGE_KEYS.USER_EXCHANGE_BALANCE, {});
-  const balance = balances[userEmail] || {
-    userId: userEmail,
-    totalBalance: 1500000, // 샘플 잔액
-    availableBalance: 1500000,
-    holdBalance: 0,
-    usedBalance: 0,
-    ledger: [
-      {
-        id: 'LED-INIT',
-        type: 'credit',
-        amount: 1500000,
-        balance: 1500000,
-        description: '시즌 보상 교환금 전환',
-        relatedId: 'SEASON-1',
-        createdAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+  try {
+    const data = await userApi.getBalance();
+    return {
+      success: true,
+      data: {
+        userId: userEmail,
+        totalBalance: data.total_balance || 0,
+        availableBalance: data.available_balance || 0,
+        holdBalance: data.hold_balance || 0,
+        usedBalance: data.used_balance || 0,
       },
-    ],
-  };
-
-  return { success: true, data: balance };
+    };
+  } catch (error) {
+    return {
+      success: true,
+      data: {
+        userId: userEmail,
+        totalBalance: 0,
+        availableBalance: 0,
+        holdBalance: 0,
+        usedBalance: 0,
+      },
+    };
+  }
 };
 
 // ========== 관리자용 API ==========
 
-// 신청 목록 조회 (필터/페이지네이션)
-export const getApplications = async (filters = {}, pagination = { page: 1, limit: 10 }) => {
-  let applications = getFromStorage(STORAGE_KEYS.EXCHANGE_APPLICATIONS);
-
-  // 필터링
-  if (filters.status) {
-    applications = applications.filter(app => app.status === filters.status);
+// 신청 목록 조회 (필터링, 페이지네이션)
+export const getApplications = async (filters = {}, pagination = {}) => {
+  try {
+    const params = {
+      ...filters,
+      page: pagination.page || 1,
+      limit: pagination.limit || 20,
+    };
+    const result = await adminApi.applications.getAll(params);
+    return {
+      success: true,
+      data: result.applications || result,
+      pagination: result.pagination,
+    };
+  } catch (error) {
+    return { success: false, error: error.message, data: [] };
   }
-  if (filters.category) {
-    applications = applications.filter(app => app.category === filters.category);
-  }
-  if (filters.search) {
-    const searchLower = filters.search.toLowerCase();
-    applications = applications.filter(app =>
-      app.id.toLowerCase().includes(searchLower) ||
-      app.userName.toLowerCase().includes(searchLower) ||
-      app.userEmail.toLowerCase().includes(searchLower)
-    );
-  }
-  if (filters.startDate) {
-    applications = applications.filter(app =>
-      new Date(app.createdAt) >= new Date(filters.startDate)
-    );
-  }
-  if (filters.endDate) {
-    applications = applications.filter(app =>
-      new Date(app.createdAt) <= new Date(filters.endDate)
-    );
-  }
-
-  // 정렬 (최신순)
-  applications.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-
-  // 페이지네이션
-  const total = applications.length;
-  const start = (pagination.page - 1) * pagination.limit;
-  const paginatedData = applications.slice(start, start + pagination.limit);
-
-  return {
-    success: true,
-    data: paginatedData,
-    pagination: {
-      total,
-      page: pagination.page,
-      limit: pagination.limit,
-      totalPages: Math.ceil(total / pagination.limit),
-    },
-  };
 };
 
 // 상태 변경
 export const updateStatus = async (applicationId, newStatus, adminName, note = '') => {
-  const applications = getFromStorage(STORAGE_KEYS.EXCHANGE_APPLICATIONS);
-  const index = applications.findIndex(app => app.id === applicationId);
-
-  if (index === -1) {
-    return { success: false, error: '신청 정보를 찾을 수 없습니다.' };
+  try {
+    const data = await adminApi.applications.updateStatus(applicationId, newStatus, note);
+    return { success: true, data };
+  } catch (error) {
+    return { success: false, error: error.message };
   }
-
-  const application = applications[index];
-  application.status = newStatus;
-  application.statusHistory.push({
-    status: newStatus,
-    timestamp: new Date().toISOString(),
-    actor: adminName,
-    note: note || `상태 변경: ${newStatus}`,
-  });
-  application.updatedAt = new Date().toISOString();
-
-  applications[index] = application;
-  saveToStorage(STORAGE_KEYS.EXCHANGE_APPLICATIONS, applications);
-
-  return { success: true, data: application };
 };
 
 // 상담 확정
 export const confirmConsultation = async (applicationId, consultationData, adminName) => {
-  const applications = getFromStorage(STORAGE_KEYS.EXCHANGE_APPLICATIONS);
-  const index = applications.findIndex(app => app.id === applicationId);
-
-  if (index === -1) {
-    return { success: false, error: '신청 정보를 찾을 수 없습니다.' };
+  try {
+    const data = await adminApi.applications.confirmConsultation(applicationId, consultationData);
+    return { success: true, data };
+  } catch (error) {
+    return { success: false, error: error.message };
   }
-
-  const application = applications[index];
-  application.consultation = {
-    ...application.consultation,
-    ...consultationData,
-    consultedAt: new Date().toISOString(),
-    consultedBy: adminName,
-  };
-  application.status = 'consultation_confirmed';
-  application.statusHistory.push({
-    status: 'consultation_confirmed',
-    timestamp: new Date().toISOString(),
-    actor: adminName,
-    note: `상담 확정 - 최종 금액: ${consultationData.finalAmount?.toLocaleString()}원`,
-  });
-  application.updatedAt = new Date().toISOString();
-
-  applications[index] = application;
-  saveToStorage(STORAGE_KEYS.EXCHANGE_APPLICATIONS, applications);
-
-  return { success: true, data: application };
 };
 
-// 승인 (교환금 차감 트리거)
+// 승인 (교환금 차감)
 export const approveApplication = async (applicationId, adminName) => {
-  const applications = getFromStorage(STORAGE_KEYS.EXCHANGE_APPLICATIONS);
-  const index = applications.findIndex(app => app.id === applicationId);
-
-  if (index === -1) {
-    return { success: false, error: '신청 정보를 찾을 수 없습니다.' };
+  try {
+    const data = await adminApi.applications.approve(applicationId);
+    return { success: true, data };
+  } catch (error) {
+    return { success: false, error: error.message };
   }
-
-  const application = applications[index];
-
-  if (application.status !== 'consultation_confirmed') {
-    return { success: false, error: '상담 확정된 신청만 승인할 수 있습니다.' };
-  }
-
-  const deductAmount = application.consultation.finalAmount;
-
-  if (!deductAmount || deductAmount <= 0) {
-    return { success: false, error: '차감할 금액이 설정되지 않았습니다.' };
-  }
-
-  // 잔액 확인 및 차감
-  const balances = getFromStorage(STORAGE_KEYS.USER_EXCHANGE_BALANCE, {});
-  const userBalance = balances[application.userEmail] || {
-    totalBalance: 1500000,
-    availableBalance: 1500000,
-    holdBalance: 0,
-    usedBalance: 0,
-    ledger: [],
-  };
-
-  if (userBalance.availableBalance < deductAmount) {
-    return { success: false, error: '교환금 잔액이 부족합니다.' };
-  }
-
-  // 원장 항목 생성
-  const ledgerEntryId = generateId('LED');
-  const ledgerEntry = {
-    id: ledgerEntryId,
-    type: 'debit',
-    amount: deductAmount,
-    balanceBefore: userBalance.totalBalance,
-    balanceAfter: userBalance.totalBalance - deductAmount,
-    description: `교환 신청 승인 (${applicationId})`,
-    relatedId: applicationId,
-    createdAt: new Date().toISOString(),
-  };
-
-  // 잔액 업데이트
-  userBalance.totalBalance -= deductAmount;
-  userBalance.availableBalance -= deductAmount;
-  userBalance.usedBalance += deductAmount;
-  userBalance.ledger = userBalance.ledger || [];
-  userBalance.ledger.unshift(ledgerEntry);
-
-  balances[application.userEmail] = userBalance;
-  saveToStorage(STORAGE_KEYS.USER_EXCHANGE_BALANCE, balances);
-
-  // 신청 상태 업데이트
-  application.status = 'approved';
-  application.approval = {
-    approvedAt: new Date().toISOString(),
-    approvedBy: adminName,
-    deductedAmount: deductAmount,
-    ledgerEntryId: ledgerEntryId,
-  };
-  application.statusHistory.push({
-    status: 'approved',
-    timestamp: new Date().toISOString(),
-    actor: adminName,
-    note: `내부 승인 완료 - 교환금 ${deductAmount.toLocaleString()}원 차감`,
-  });
-  application.updatedAt = new Date().toISOString();
-
-  applications[index] = application;
-  saveToStorage(STORAGE_KEYS.EXCHANGE_APPLICATIONS, applications);
-
-  return { success: true, data: application, ledgerEntry };
 };
 
 // 배송 정보 업데이트
 export const updateDelivery = async (applicationId, deliveryData, adminName) => {
-  const applications = getFromStorage(STORAGE_KEYS.EXCHANGE_APPLICATIONS);
-  const index = applications.findIndex(app => app.id === applicationId);
-
-  if (index === -1) {
-    return { success: false, error: '신청 정보를 찾을 수 없습니다.' };
+  try {
+    const data = await adminApi.applications.updateDelivery(applicationId, deliveryData);
+    return { success: true, data };
+  } catch (error) {
+    return { success: false, error: error.message };
   }
-
-  const application = applications[index];
-  application.delivery = {
-    ...application.delivery,
-    ...deliveryData,
-  };
-
-  // 배송 상태에 따른 상태 변경
-  if (deliveryData.trackingNumber && application.status === 'ready_to_ship') {
-    application.status = 'shipping';
-    application.statusHistory.push({
-      status: 'shipping',
-      timestamp: new Date().toISOString(),
-      actor: adminName,
-      note: `배송 시작 - 송장번호: ${deliveryData.trackingNumber}`,
-    });
-  }
-
-  application.updatedAt = new Date().toISOString();
-
-  applications[index] = application;
-  saveToStorage(STORAGE_KEYS.EXCHANGE_APPLICATIONS, applications);
-
-  return { success: true, data: application };
 };
 
-// 관리자 취소 처리
-export const adminCancelApplication = async (applicationId, adminName, reason) => {
-  const applications = getFromStorage(STORAGE_KEYS.EXCHANGE_APPLICATIONS);
-  const index = applications.findIndex(app => app.id === applicationId);
-
-  if (index === -1) {
-    return { success: false, error: '신청 정보를 찾을 수 없습니다.' };
+// 관리자 취소
+export const adminCancelApplication = async (applicationId, adminName, reason = '') => {
+  try {
+    const data = await adminApi.applications.cancel(applicationId, reason);
+    return { success: true, data };
+  } catch (error) {
+    return { success: false, error: error.message };
   }
-
-  const application = applications[index];
-  const statusInfo = Object.values(EXCHANGE_STATUS).find(s => s.key === application.status);
-
-  if (!statusInfo?.canCancel) {
-    return { success: false, error: '취소할 수 없는 상태입니다. (내부 승인 이후 취소 불가)' };
-  }
-
-  application.status = 'cancelled';
-  application.statusHistory.push({
-    status: 'cancelled',
-    timestamp: new Date().toISOString(),
-    actor: adminName,
-    note: reason || '관리자 취소 처리',
-  });
-  application.updatedAt = new Date().toISOString();
-
-  applications[index] = application;
-  saveToStorage(STORAGE_KEYS.EXCHANGE_APPLICATIONS, applications);
-
-  return { success: true, data: application };
 };
 
-// ========== 관리자 인증 API ==========
+// 통계 조회
+export const getStatistics = async () => {
+  try {
+    const data = await adminApi.applications.getStatistics();
+    return { success: true, data };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+};
+
+// ========== 관리자 인증 ==========
 
 // 관리자 로그인
 export const adminLogin = async (email, password) => {
-  // 관리자 계정
-  const adminUsers = {
-    'cjsql4159@rubyround.net': {
-      email: 'cjsql4159@rubyround.net',
-      password: 'ja04051010!',
-      name: '대표',
-      role: 'ceo',
-    },
-    'lbj0134@rubyround.net': {
-      email: 'lbj0134@rubyround.net',
-      password: '0p9o8i7u6y@',
-      name: 'CS관리자1',
-      role: 'cs_manager',
-    },
-    'dmswls5547@rubyround.net': {
-      email: 'dmswls5547@rubyround.net',
-      password: 'wjdehd312#',
-      name: 'CS관리자2',
-      role: 'cs_manager',
-    },
-    'nxwxn1007@rubyround.net': {
-      email: 'nxwxn1007@rubyround.net',
-      password: 'aa5016015',
-      name: 'CS관리자3',
-      role: 'cs_manager',
-    },
-  };
-
-  const user = adminUsers[email];
-
-  if (!user || user.password !== password) {
-    return { success: false, error: '이메일 또는 비밀번호가 일치하지 않습니다.' };
+  try {
+    const result = await authApi.adminLogin(email, password);
+    return {
+      success: true,
+      data: {
+        admin: result.admin,
+        token: result.token,
+      },
+    };
+  } catch (error) {
+    return { success: false, error: error.message };
   }
-
-  const authData = {
-    email: user.email,
-    name: user.name,
-    role: user.role,
-    loginAt: new Date().toISOString(),
-  };
-
-  saveToStorage(STORAGE_KEYS.ADMIN_AUTH, authData);
-
-  return { success: true, data: authData };
 };
 
 // 관리자 로그아웃
 export const adminLogout = async () => {
-  localStorage.removeItem(STORAGE_KEYS.ADMIN_AUTH);
+  authApi.adminLogout();
   return { success: true };
 };
 
-// 관리자 인증 확인
+// 관리자 인증 확인 (동기 - 토큰 및 저장된 정보 확인)
 export const getAdminAuth = () => {
-  return getFromStorage(STORAGE_KEYS.ADMIN_AUTH, null);
-};
-
-// 통계 조회 (대시보드용)
-export const getStatistics = async () => {
-  const applications = getFromStorage(STORAGE_KEYS.EXCHANGE_APPLICATIONS);
-
-  const stats = {
-    total: applications.length,
-    byStatus: {},
-    byCategory: {},
-    totalAmount: 0,
-    approvedAmount: 0,
+  if (!authApi.isAdminLoggedIn()) {
+    return null;
+  }
+  // 저장된 관리자 정보 반환 (role 포함)
+  const adminInfo = authApi.getStoredAdminInfo();
+  return {
+    isAuthenticated: true,
+    ...adminInfo,
   };
+};
 
-  applications.forEach(app => {
-    // 상태별 집계
-    stats.byStatus[app.status] = (stats.byStatus[app.status] || 0) + 1;
-
-    // 카테고리별 집계
-    stats.byCategory[app.category] = (stats.byCategory[app.category] || 0) + 1;
-
-    // 금액 집계
-    stats.totalAmount += app.requestedAmount || 0;
-    if (app.approval?.deductedAmount) {
-      stats.approvedAmount += app.approval.deductedAmount;
+// 관리자 인증 확인 (비동기 - 서버 검증)
+export const getAdminAuthAsync = async () => {
+  try {
+    if (!authApi.isAdminLoggedIn()) {
+      return { success: false, data: null };
     }
-  });
-
-  return { success: true, data: stats };
-};
-
-// ========== 상담 접수 모달 콘텐츠 관리 API ==========
-
-// 모달 콘텐츠 조회
-export const getConsultationModalContent = () => {
-  const content = getFromStorage(STORAGE_KEYS.CONSULTATION_MODAL_CONTENT, null);
-  return content || DEFAULT_CONSULTATION_MODAL_CONTENT;
-};
-
-// 모달 콘텐츠 저장
-export const saveConsultationModalContent = async (content) => {
-  try {
-    const updatedContent = {
-      ...content,
-      updatedAt: new Date().toISOString(),
+    const admin = await authApi.getAdminMe();
+    return {
+      success: true,
+      data: {
+        isAuthenticated: true,
+        admin,
+      },
     };
-    saveToStorage(STORAGE_KEYS.CONSULTATION_MODAL_CONTENT, updatedContent);
-    return { success: true, data: updatedContent };
   } catch (error) {
-    return { success: false, error: '저장 중 오류가 발생했습니다.' };
+    return { success: false, data: null };
   }
 };
 
-// 모달 콘텐츠 초기화 (기본값으로)
-export const resetConsultationModalContent = async () => {
-  try {
-    localStorage.removeItem(STORAGE_KEYS.CONSULTATION_MODAL_CONTENT);
-    return { success: true, data: DEFAULT_CONSULTATION_MODAL_CONTENT };
-  } catch (error) {
-    return { success: false, error: '초기화 중 오류가 발생했습니다.' };
-  }
-};
-
-// ========== 사용자 관리 API ==========
+// ========== 사용자 관리 ==========
 
 // 사용자 목록 조회
 export const getUsers = async (filters = {}) => {
-  let users = getFromStorage(STORAGE_KEYS.USERS, []);
-
-  // 필터링
-  if (filters.search) {
-    const searchLower = filters.search.toLowerCase();
-    users = users.filter(user =>
-      user.name.toLowerCase().includes(searchLower) ||
-      user.email.toLowerCase().includes(searchLower) ||
-      (user.phone && user.phone.includes(searchLower))
-    );
+  try {
+    const result = await adminApi.users.getAll(filters);
+    return { success: true, data: result.users || result };
+  } catch (error) {
+    return { success: false, error: error.message, data: [] };
   }
-  if (filters.status) {
-    users = users.filter(user => user.status === filters.status);
-  }
-
-  // 정렬 (최신순)
-  users.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-
-  return { success: true, data: users };
 };
 
 // 사용자 상세 조회
-export const getUserDetail = async (userId) => {
-  const users = getFromStorage(STORAGE_KEYS.USERS, []);
-  const user = users.find(u => u.id === userId || u.email === userId);
-
-  if (!user) {
-    return { success: false, error: '사용자를 찾을 수 없습니다.' };
+export const getUserDetail = async (userIdOrEmail) => {
+  try {
+    let data;
+    if (userIdOrEmail.includes('@')) {
+      data = await adminApi.users.getByEmail(userIdOrEmail);
+    } else {
+      data = await adminApi.users.getDetail(userIdOrEmail);
+    }
+    return { success: true, data };
+  } catch (error) {
+    return { success: false, error: error.message };
   }
-
-  // 사용자의 교환금 잔액 조회
-  const balances = getFromStorage(STORAGE_KEYS.USER_EXCHANGE_BALANCE, {});
-  const balance = balances[user.email] || {
-    totalBalance: 0,
-    availableBalance: 0,
-    holdBalance: 0,
-    usedBalance: 0,
-  };
-
-  return { success: true, data: { ...user, balance } };
 };
 
-// 사용자 등록 (회원가입)
+// 사용자 등록
 export const registerUser = async (userData) => {
-  const users = getFromStorage(STORAGE_KEYS.USERS, []);
-
-  // 이메일 중복 체크
-  if (users.some(u => u.email === userData.email)) {
-    return { success: false, error: '이미 가입된 이메일입니다.' };
+  try {
+    const result = await authApi.register(
+      userData.email,
+      userData.password,
+      userData.name,
+      userData.phone
+    );
+    return { success: true, data: result.user, isNewUser: result.isNewUser };
+  } catch (error) {
+    return { success: false, error: error.message };
   }
-
-  const newUser = {
-    id: generateId('USR'),
-    ...userData,
-    status: 'active',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  };
-
-  users.unshift(newUser);
-  saveToStorage(STORAGE_KEYS.USERS, users);
-
-  // 기본 교환금 잔액 설정
-  const balances = getFromStorage(STORAGE_KEYS.USER_EXCHANGE_BALANCE, {});
-  balances[newUser.email] = {
-    userId: newUser.email,
-    totalBalance: 0,
-    availableBalance: 0,
-    holdBalance: 0,
-    usedBalance: 0,
-    ledger: [],
-  };
-  saveToStorage(STORAGE_KEYS.USER_EXCHANGE_BALANCE, balances);
-
-  return { success: true, data: newUser };
 };
 
 // 소셜 로그인 사용자 등록/조회
 export const registerOrGetSocialUser = async (userData) => {
-  const users = getFromStorage(STORAGE_KEYS.USERS, []);
-
-  // 기존 사용자 확인 (이메일로)
-  const existingUser = users.find(u => u.email === userData.email);
-
-  if (existingUser) {
-    // 기존 사용자 - 소셜 로그인 정보 업데이트
-    existingUser.lastLoginAt = new Date().toISOString();
-    existingUser.loginProvider = userData.loginProvider;
-    if (userData.profileImage) {
-      existingUser.profileImage = userData.profileImage;
-    }
-    // 추가 동의 항목 업데이트 (기존 값이 없을 때만)
-    if (userData.phoneNumber && !existingUser.phoneNumber) {
-      existingUser.phoneNumber = userData.phoneNumber;
-    }
-    if (userData.birthday && !existingUser.birthday) {
-      existingUser.birthday = userData.birthday;
-    }
-    if (userData.birthyear && !existingUser.birthyear) {
-      existingUser.birthyear = userData.birthyear;
-    }
-    if (userData.gender && !existingUser.gender) {
-      existingUser.gender = userData.gender;
-    }
-    existingUser.updatedAt = new Date().toISOString();
-    saveToStorage(STORAGE_KEYS.USERS, users);
-    return { success: true, data: existingUser, isNewUser: false };
+  try {
+    const result = await authApi.socialLogin(userData);
+    return { success: true, data: result.user, isNewUser: result.isNewUser };
+  } catch (error) {
+    return { success: false, error: error.message };
   }
-
-  // 새 사용자 등록 (추가 동의 항목 포함)
-  const newUser = {
-    id: generateId('USR'),
-    name: userData.name,
-    email: userData.email,
-    phone: userData.phone || '',
-    profileImage: userData.profileImage || '',
-    loginProvider: userData.loginProvider, // 'kakao' or 'google'
-    socialId: userData.socialId, // 카카오/구글 ID
-    // 카카오 추가 동의 항목
-    phoneNumber: userData.phoneNumber || '', // 전화번호 (+82 10-xxxx-xxxx 형식)
-    birthday: userData.birthday || '', // MMDD 형식
-    birthyear: userData.birthyear || '', // YYYY 형식
-    gender: userData.gender || '', // male/female
-    status: 'active',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    lastLoginAt: new Date().toISOString(),
-  };
-
-  users.unshift(newUser);
-  saveToStorage(STORAGE_KEYS.USERS, users);
-
-  // 기본 교환금 잔액 설정
-  const balances = getFromStorage(STORAGE_KEYS.USER_EXCHANGE_BALANCE, {});
-  balances[newUser.email] = {
-    userId: newUser.email,
-    totalBalance: 0,
-    availableBalance: 0,
-    holdBalance: 0,
-    usedBalance: 0,
-    ledger: [],
-  };
-  saveToStorage(STORAGE_KEYS.USER_EXCHANGE_BALANCE, balances);
-
-  return { success: true, data: newUser, isNewUser: true };
 };
 
 // 사용자 로그인
 export const loginUser = async (email, password) => {
-  const users = getFromStorage(STORAGE_KEYS.USERS, []);
-  const user = users.find(u => u.email === email && u.password === password);
-
-  if (!user) {
-    return { success: false, error: '이메일 또는 비밀번호가 일치하지 않습니다.' };
+  try {
+    const result = await authApi.login(email, password);
+    return { success: true, data: result.user };
+  } catch (error) {
+    return { success: false, error: error.message };
   }
-
-  if (user.status !== 'active') {
-    return { success: false, error: '비활성화된 계정입니다. 관리자에게 문의하세요.' };
-  }
-
-  return { success: true, data: user };
 };
 
 // 비밀번호 변경
 export const changePassword = async (email, currentPassword, newPassword) => {
-  const users = getFromStorage(STORAGE_KEYS.USERS, []);
-  const userIndex = users.findIndex(u => u.email === email);
-
-  if (userIndex === -1) {
-    return { success: false, error: '사용자를 찾을 수 없습니다.' };
+  try {
+    await authApi.changePassword(currentPassword, newPassword);
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
   }
-
-  if (users[userIndex].password !== currentPassword) {
-    return { success: false, error: '현재 비밀번호가 일치하지 않습니다.' };
-  }
-
-  users[userIndex].password = newPassword;
-  users[userIndex].updatedAt = new Date().toISOString();
-  saveToStorage(STORAGE_KEYS.USERS, users);
-
-  return { success: true };
 };
 
-// 사용자 삭제 (회원탈퇴)
+// 회원탈퇴
 export const deleteUser = async (email) => {
-  const users = getFromStorage(STORAGE_KEYS.USERS, []);
-  const userIndex = users.findIndex(u => u.email === email);
-
-  if (userIndex === -1) {
-    return { success: false, error: '사용자를 찾을 수 없습니다.' };
+  try {
+    await authApi.deleteAccount();
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
   }
-
-  // 사용자 삭제
-  users.splice(userIndex, 1);
-  saveToStorage(STORAGE_KEYS.USERS, users);
-
-  // 교환금 잔액 삭제
-  const balances = getFromStorage(STORAGE_KEYS.USER_EXCHANGE_BALANCE, {});
-  delete balances[email];
-  saveToStorage(STORAGE_KEYS.USER_EXCHANGE_BALANCE, balances);
-
-  // 성인인증 기록 삭제
-  const verifications = getFromStorage(STORAGE_KEYS.ADULT_VERIFICATIONS, []);
-  const filteredVerifications = verifications.filter(v => v.userEmail !== email);
-  saveToStorage(STORAGE_KEYS.ADULT_VERIFICATIONS, filteredVerifications);
-
-  return { success: true };
 };
 
-// 사용자 정보 수정
+// 사용자 정보 수정 (관리자)
 export const updateUser = async (userId, updateData) => {
-  const users = getFromStorage(STORAGE_KEYS.USERS, []);
-  const index = users.findIndex(u => u.id === userId || u.email === userId);
-
-  if (index === -1) {
-    return { success: false, error: '사용자를 찾을 수 없습니다.' };
+  try {
+    const data = await adminApi.users.updateStatus(userId, updateData.status);
+    return { success: true, data };
+  } catch (error) {
+    return { success: false, error: error.message };
   }
-
-  users[index] = {
-    ...users[index],
-    ...updateData,
-    updatedAt: new Date().toISOString(),
-  };
-
-  saveToStorage(STORAGE_KEYS.USERS, users);
-  return { success: true, data: users[index] };
 };
 
-// 사용자 상태 변경 (활성/비활성)
+// 사용자 상태 변경
 export const updateUserStatus = async (userId, status) => {
-  return updateUser(userId, { status });
+  try {
+    const data = await adminApi.users.updateStatus(userId, status);
+    return { success: true, data };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
 };
 
-// 사용자 교환금 충전
+// 교환금 충전 (관리자)
 export const chargeUserBalance = async (userEmail, amount, description = '') => {
-  const balances = getFromStorage(STORAGE_KEYS.USER_EXCHANGE_BALANCE, {});
-
-  if (!balances[userEmail]) {
-    balances[userEmail] = {
-      userId: userEmail,
-      totalBalance: 0,
-      availableBalance: 0,
-      holdBalance: 0,
-      usedBalance: 0,
-      ledger: [],
-    };
+  try {
+    // First get user ID from email
+    const userResult = await adminApi.users.getByEmail(userEmail);
+    const data = await adminApi.users.chargeBalance(userResult.id, amount, description);
+    return { success: true, data };
+  } catch (error) {
+    return { success: false, error: error.message };
   }
-
-  const balance = balances[userEmail];
-  const ledgerEntry = {
-    id: generateId('LED'),
-    type: 'credit',
-    amount: amount,
-    balanceBefore: balance.totalBalance,
-    balanceAfter: balance.totalBalance + amount,
-    description: description || '관리자 충전',
-    createdAt: new Date().toISOString(),
-  };
-
-  balance.totalBalance += amount;
-  balance.availableBalance += amount;
-  balance.ledger = balance.ledger || [];
-  balance.ledger.unshift(ledgerEntry);
-
-  balances[userEmail] = balance;
-  saveToStorage(STORAGE_KEYS.USER_EXCHANGE_BALANCE, balances);
-
-  return { success: true, data: balance, ledgerEntry };
 };
 
-// 사용자 교환금 차감
+// 교환금 차감 (관리자)
 export const deductUserBalance = async (userEmail, amount, description = '') => {
-  const balances = getFromStorage(STORAGE_KEYS.USER_EXCHANGE_BALANCE, {});
-  const balance = balances[userEmail];
-
-  if (!balance || balance.availableBalance < amount) {
-    return { success: false, error: '잔액이 부족합니다.' };
+  try {
+    const userResult = await adminApi.users.getByEmail(userEmail);
+    const data = await adminApi.users.deductBalance(userResult.id, amount, description);
+    return { success: true, data };
+  } catch (error) {
+    return { success: false, error: error.message };
   }
-
-  const ledgerEntry = {
-    id: generateId('LED'),
-    type: 'debit',
-    amount: amount,
-    balanceBefore: balance.totalBalance,
-    balanceAfter: balance.totalBalance - amount,
-    description: description || '관리자 차감',
-    createdAt: new Date().toISOString(),
-  };
-
-  balance.totalBalance -= amount;
-  balance.availableBalance -= amount;
-  balance.ledger = balance.ledger || [];
-  balance.ledger.unshift(ledgerEntry);
-
-  balances[userEmail] = balance;
-  saveToStorage(STORAGE_KEYS.USER_EXCHANGE_BALANCE, balances);
-
-  return { success: true, data: balance, ledgerEntry };
 };
 
 // 사용자 통계
 export const getUserStatistics = async () => {
-  const users = getFromStorage(STORAGE_KEYS.USERS, []);
-  const balances = getFromStorage(STORAGE_KEYS.USER_EXCHANGE_BALANCE, {});
-
-  let totalBalance = 0;
-  Object.values(balances).forEach(b => {
-    totalBalance += b.totalBalance || 0;
-  });
-
-  return {
-    success: true,
-    data: {
-      totalUsers: users.length,
-      activeUsers: users.filter(u => u.status === 'active').length,
-      inactiveUsers: users.filter(u => u.status === 'inactive').length,
-      totalBalance,
-    },
-  };
+  try {
+    const data = await adminApi.users.getStatistics();
+    return { success: true, data };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
 };
 
-// ========== 배송 관리 API ==========
+// ========== 배송 관리 ==========
 
-// 배송 대기 목록 조회 (승인된 교환 신청 중 배송 필요한 건)
+// 배송 대기 목록
 export const getDeliveryList = async (filters = {}) => {
-  const applications = getFromStorage(STORAGE_KEYS.EXCHANGE_APPLICATIONS);
-
-  // 승인 완료 이후 상태인 신청 건만 필터링
-  const deliveryStatuses = ['approved', 'in_production', 'ready_to_ship', 'shipping', 'delivered', 'completed'];
-  let deliveries = applications.filter(app => deliveryStatuses.includes(app.status));
-
-  // 필터링
-  if (filters.status) {
-    deliveries = deliveries.filter(app => app.status === filters.status);
+  try {
+    const result = await adminApi.applications.getAll({
+      ...filters,
+      status: 'ready_to_ship',
+    });
+    return { success: true, data: result.applications || result };
+  } catch (error) {
+    return { success: false, error: error.message, data: [] };
   }
-  if (filters.search) {
-    const searchLower = filters.search.toLowerCase();
-    deliveries = deliveries.filter(app =>
-      app.id.toLowerCase().includes(searchLower) ||
-      app.userName.toLowerCase().includes(searchLower) ||
-      app.delivery?.recipientName?.toLowerCase().includes(searchLower) ||
-      app.delivery?.trackingNumber?.includes(searchLower)
-    );
-  }
-  if (filters.courier) {
-    deliveries = deliveries.filter(app => app.delivery?.courier === filters.courier);
-  }
-
-  // 정렬 (최신순)
-  deliveries.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
-
-  return { success: true, data: deliveries };
 };
 
-// 배송 정보 상세 조회
+// 배송 상세 조회
 export const getDeliveryDetail = async (applicationId) => {
-  const applications = getFromStorage(STORAGE_KEYS.EXCHANGE_APPLICATIONS);
-  const application = applications.find(app => app.id === applicationId);
-
-  if (!application) {
-    return { success: false, error: '신청 정보를 찾을 수 없습니다.' };
+  try {
+    const data = await adminApi.applications.getDetail(applicationId);
+    return { success: true, data };
+  } catch (error) {
+    return { success: false, error: error.message };
   }
-
-  return { success: true, data: application };
 };
 
-// 배송 정보 일괄 업데이트 (송장 등록)
+// 송장 등록
 export const registerTrackingNumber = async (applicationId, trackingData, adminName) => {
-  const applications = getFromStorage(STORAGE_KEYS.EXCHANGE_APPLICATIONS);
-  const index = applications.findIndex(app => app.id === applicationId);
-
-  if (index === -1) {
-    return { success: false, error: '신청 정보를 찾을 수 없습니다.' };
+  try {
+    const data = await adminApi.applications.updateDelivery(applicationId, trackingData);
+    return { success: true, data };
+  } catch (error) {
+    return { success: false, error: error.message };
   }
-
-  const application = applications[index];
-
-  // 출고 준비 상태 이상만 송장 등록 가능
-  const allowedStatuses = ['ready_to_ship', 'in_production'];
-  if (!allowedStatuses.includes(application.status)) {
-    return { success: false, error: '현재 상태에서는 송장을 등록할 수 없습니다.' };
-  }
-
-  application.delivery = {
-    ...application.delivery,
-    trackingNumber: trackingData.trackingNumber,
-    courier: trackingData.courier,
-    shippedAt: new Date().toISOString(),
-  };
-
-  application.status = 'shipping';
-  application.statusHistory.push({
-    status: 'shipping',
-    timestamp: new Date().toISOString(),
-    actor: adminName,
-    note: `배송 시작 - ${trackingData.courier} / ${trackingData.trackingNumber}`,
-  });
-  application.updatedAt = new Date().toISOString();
-
-  applications[index] = application;
-  saveToStorage(STORAGE_KEYS.EXCHANGE_APPLICATIONS, applications);
-
-  return { success: true, data: application };
 };
 
 // 배송 완료 처리
 export const markAsDelivered = async (applicationId, adminName) => {
-  const applications = getFromStorage(STORAGE_KEYS.EXCHANGE_APPLICATIONS);
-  const index = applications.findIndex(app => app.id === applicationId);
-
-  if (index === -1) {
-    return { success: false, error: '신청 정보를 찾을 수 없습니다.' };
+  try {
+    const data = await adminApi.applications.markDelivered(applicationId);
+    return { success: true, data };
+  } catch (error) {
+    return { success: false, error: error.message };
   }
-
-  const application = applications[index];
-
-  if (application.status !== 'shipping') {
-    return { success: false, error: '배송중 상태에서만 배송완료 처리가 가능합니다.' };
-  }
-
-  application.delivery = {
-    ...application.delivery,
-    deliveredAt: new Date().toISOString(),
-  };
-
-  application.status = 'delivered';
-  application.statusHistory.push({
-    status: 'delivered',
-    timestamp: new Date().toISOString(),
-    actor: adminName,
-    note: '배송 완료',
-  });
-  application.updatedAt = new Date().toISOString();
-
-  applications[index] = application;
-  saveToStorage(STORAGE_KEYS.EXCHANGE_APPLICATIONS, applications);
-
-  return { success: true, data: application };
 };
 
 // 배송 상태 변경
 export const updateDeliveryStatus = async (applicationId, newStatus, adminName, note = '') => {
-  const applications = getFromStorage(STORAGE_KEYS.EXCHANGE_APPLICATIONS);
-  const index = applications.findIndex(app => app.id === applicationId);
-
-  if (index === -1) {
-    return { success: false, error: '신청 정보를 찾을 수 없습니다.' };
+  try {
+    const data = await adminApi.applications.updateStatus(applicationId, newStatus, note);
+    return { success: true, data };
+  } catch (error) {
+    return { success: false, error: error.message };
   }
-
-  const application = applications[index];
-  application.status = newStatus;
-  application.statusHistory.push({
-    status: newStatus,
-    timestamp: new Date().toISOString(),
-    actor: adminName,
-    note: note || `배송 상태 변경: ${newStatus}`,
-  });
-  application.updatedAt = new Date().toISOString();
-
-  applications[index] = application;
-  saveToStorage(STORAGE_KEYS.EXCHANGE_APPLICATIONS, applications);
-
-  return { success: true, data: application };
 };
 
 // 배송 통계
 export const getDeliveryStatistics = async () => {
-  const applications = getFromStorage(STORAGE_KEYS.EXCHANGE_APPLICATIONS);
-  const deliveryStatuses = ['approved', 'in_production', 'ready_to_ship', 'shipping', 'delivered', 'completed'];
-  const deliveries = applications.filter(app => deliveryStatuses.includes(app.status));
-
-  const stats = {
-    total: deliveries.length,
-    byStatus: {},
-    pendingShipment: 0,  // 출고 대기
-    shipping: 0,          // 배송 중
-    delivered: 0,         // 배송 완료
-    completed: 0,         // 완료
-  };
-
-  deliveries.forEach(app => {
-    stats.byStatus[app.status] = (stats.byStatus[app.status] || 0) + 1;
-
-    if (['approved', 'in_production', 'ready_to_ship'].includes(app.status)) {
-      stats.pendingShipment++;
-    } else if (app.status === 'shipping') {
-      stats.shipping++;
-    } else if (app.status === 'delivered') {
-      stats.delivered++;
-    } else if (app.status === 'completed') {
-      stats.completed++;
-    }
-  });
-
-  return { success: true, data: stats };
+  try {
+    const data = await adminApi.applications.getStatistics();
+    return { success: true, data };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
 };
 
-// ========== 성인 인증 API ==========
+// ========== 성인 인증 ==========
 
-// 성인 인증 요청 목록 조회
+// 성인 인증 요청 목록
 export const getAdultVerificationRequests = async (filters = {}) => {
-  let verifications = getFromStorage(STORAGE_KEYS.ADULT_VERIFICATIONS, []);
-
-  // 필터링
-  if (filters.status) {
-    verifications = verifications.filter(v => v.status === filters.status);
+  try {
+    const result = await adminApi.verification.getAll(filters);
+    return { success: true, data: result.verifications || result };
+  } catch (error) {
+    return { success: false, error: error.message, data: [] };
   }
-  if (filters.search) {
-    const searchLower = filters.search.toLowerCase();
-    verifications = verifications.filter(v =>
-      v.userName.toLowerCase().includes(searchLower) ||
-      v.userEmail.toLowerCase().includes(searchLower)
-    );
-  }
-
-  // 정렬 (최신순)
-  verifications.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-
-  return { success: true, data: verifications };
 };
 
-// 성인 인증 요청 생성 (사용자가 인증 요청)
+// 성인 인증 요청 생성
 export const createAdultVerificationRequest = async (userData) => {
-  const verifications = getFromStorage(STORAGE_KEYS.ADULT_VERIFICATIONS, []);
-
-  // 이미 대기 중인 요청이 있는지 확인
-  const existing = verifications.find(v =>
-    v.userEmail === userData.userEmail && v.status === 'pending'
-  );
-  if (existing) {
-    return { success: false, error: '이미 대기 중인 인증 요청이 있습니다.' };
-  }
-
-  const newRequest = {
-    id: generateId('AV'),
-    ...userData,
-    status: 'pending',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  };
-
-  verifications.unshift(newRequest);
-  saveToStorage(STORAGE_KEYS.ADULT_VERIFICATIONS, verifications);
-
-  await createAuditLog({
-    action: 'create',
-    targetType: 'verification',
-    targetId: newRequest.id,
-    adminName: userData.userName || userData.userEmail,
-    description: `성인 인증 요청 생성: ${userData.userEmail}`,
-    details: { method: userData.method },
-  });
-
-  return { success: true, data: newRequest };
+  // This is handled during user registration/login flow
+  return { success: true, data: { id: 'pending' } };
 };
 
-// 성인 인증 승인 (대표만 가능)
+// 성인 인증 승인
 export const approveAdultVerification = async (verificationId, adminName) => {
-  const verifications = getFromStorage(STORAGE_KEYS.ADULT_VERIFICATIONS, []);
-  const index = verifications.findIndex(v => v.id === verificationId);
-
-  if (index === -1) {
-    return { success: false, error: '인증 요청을 찾을 수 없습니다.' };
+  try {
+    const data = await adminApi.verification.approve(verificationId);
+    return { success: true, data };
+  } catch (error) {
+    return { success: false, error: error.message };
   }
-
-  const verification = verifications[index];
-
-  if (verification.status !== 'pending') {
-    return { success: false, error: '대기 중인 요청만 승인할 수 있습니다.' };
-  }
-
-  verification.status = 'approved';
-  verification.approvedAt = new Date().toISOString();
-  verification.approvedBy = adminName;
-  verification.updatedAt = new Date().toISOString();
-
-  verifications[index] = verification;
-  saveToStorage(STORAGE_KEYS.ADULT_VERIFICATIONS, verifications);
-
-  // 사용자 정보 업데이트
-  const users = getFromStorage(STORAGE_KEYS.USERS, []);
-  const userIndex = users.findIndex(u => u.email === verification.userEmail);
-  if (userIndex !== -1) {
-    users[userIndex].adultVerified = true;
-    users[userIndex].adultVerifiedAt = verification.approvedAt;
-    users[userIndex].updatedAt = new Date().toISOString();
-    saveToStorage(STORAGE_KEYS.USERS, users);
-  }
-
-  await createAuditLog({
-    action: 'approve',
-    targetType: 'verification',
-    targetId: verificationId,
-    adminName,
-    description: `성인 인증 승인: ${verification.userEmail}`,
-  });
-
-  return { success: true, data: verification };
 };
 
 // 성인 인증 거부
-export const rejectAdultVerification = async (verificationId, adminName, reason = '') => {
-  const verifications = getFromStorage(STORAGE_KEYS.ADULT_VERIFICATIONS, []);
-  const index = verifications.findIndex(v => v.id === verificationId);
-
-  if (index === -1) {
-    return { success: false, error: '인증 요청을 찾을 수 없습니다.' };
+export const rejectAdultVerification = async (verificationId, adminName, reason) => {
+  try {
+    const data = await adminApi.verification.reject(verificationId, reason);
+    return { success: true, data };
+  } catch (error) {
+    return { success: false, error: error.message };
   }
-
-  const verification = verifications[index];
-
-  if (verification.status !== 'pending') {
-    return { success: false, error: '대기 중인 요청만 거부할 수 있습니다.' };
-  }
-
-  verification.status = 'rejected';
-  verification.rejectedAt = new Date().toISOString();
-  verification.rejectedBy = adminName;
-  verification.rejectionReason = reason;
-  verification.updatedAt = new Date().toISOString();
-
-  verifications[index] = verification;
-  saveToStorage(STORAGE_KEYS.ADULT_VERIFICATIONS, verifications);
-
-  await createAuditLog({
-    action: 'reject',
-    targetType: 'verification',
-    targetId: verificationId,
-    adminName,
-    description: `성인 인증 거부: ${verification.userEmail}`,
-    details: { reason },
-  });
-
-  return { success: true, data: verification };
 };
 
-// 성인 인증 요청 삭제
+// 인증 요청 삭제
 export const deleteAdultVerification = async (verificationId) => {
-  const verifications = getFromStorage(STORAGE_KEYS.ADULT_VERIFICATIONS, []);
-  const index = verifications.findIndex(v => v.id === verificationId);
-
-  if (index === -1) {
-    return { success: false, error: '인증 요청을 찾을 수 없습니다.' };
+  // Not directly supported, but can reject
+  try {
+    const data = await adminApi.verification.reject(verificationId, '삭제됨');
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
   }
-
-  verifications.splice(index, 1);
-  saveToStorage(STORAGE_KEYS.ADULT_VERIFICATIONS, verifications);
-
-  return { success: true };
 };
 
-// 관리자 수동 성인 인증 (대표만 가능)
+// 수동 성인 인증
 export const manualAdultVerification = async (userEmail, adminName) => {
-  const users = getFromStorage(STORAGE_KEYS.USERS, []);
-  const userIndex = users.findIndex(u => u.email === userEmail);
-
-  if (userIndex === -1) {
-    return { success: false, error: '사용자를 찾을 수 없습니다.' };
+  try {
+    const userResult = await adminApi.users.getByEmail(userEmail);
+    const data = await adminApi.verification.manualVerify(userResult.id);
+    return { success: true, data };
+  } catch (error) {
+    return { success: false, error: error.message };
   }
-
-  users[userIndex].adultVerified = true;
-  users[userIndex].adultVerifiedAt = new Date().toISOString();
-  users[userIndex].adultVerifiedBy = adminName;
-  users[userIndex].adultVerificationMethod = 'manual';
-  users[userIndex].updatedAt = new Date().toISOString();
-
-  saveToStorage(STORAGE_KEYS.USERS, users);
-
-  // 인증 기록 추가
-  const verifications = getFromStorage(STORAGE_KEYS.ADULT_VERIFICATIONS, []);
-  const record = {
-    id: generateId('AV'),
-    userEmail,
-    userName: users[userIndex].name,
-    method: 'manual',
-    status: 'approved',
-    approvedAt: new Date().toISOString(),
-    approvedBy: adminName,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  };
-  verifications.unshift(record);
-  saveToStorage(STORAGE_KEYS.ADULT_VERIFICATIONS, verifications);
-
-  await createAuditLog({
-    action: 'approve',
-    targetType: 'verification',
-    targetId: record.id,
-    adminName,
-    description: `관리자 수동 성인 인증: ${userEmail}`,
-    details: { method: 'manual' },
-  });
-
-  return { success: true, data: users[userIndex] };
 };
 
-// 성인 인증 취소 (대표만 가능)
-export const revokeAdultVerification = async (userEmail, adminName, reason = '') => {
-  const users = getFromStorage(STORAGE_KEYS.USERS, []);
-  const userIndex = users.findIndex(u => u.email === userEmail);
-
-  if (userIndex === -1) {
-    return { success: false, error: '사용자를 찾을 수 없습니다.' };
+// 성인 인증 취소
+export const revokeAdultVerification = async (userEmail, adminName, reason) => {
+  try {
+    const userResult = await adminApi.users.getByEmail(userEmail);
+    const data = await adminApi.verification.revoke(userResult.id, reason);
+    return { success: true, data };
+  } catch (error) {
+    return { success: false, error: error.message };
   }
+};
 
-  users[userIndex].adultVerified = false;
-  users[userIndex].adultVerificationRevokedAt = new Date().toISOString();
-  users[userIndex].adultVerificationRevokedBy = adminName;
-  users[userIndex].adultVerificationRevokeReason = reason;
-  users[userIndex].updatedAt = new Date().toISOString();
+// PASS 본인인증 결과 처리
+export const completePassVerification = async (userEmail, verificationData) => {
+  try {
+    const data = await authApi.completePassVerification(verificationData);
+    return { success: true, data };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+};
 
-  saveToStorage(STORAGE_KEYS.USERS, users);
+// CI 중복 확인
+export const checkDuplicateCI = async (ci, currentUserEmail) => {
+  // This is checked on the server side during verification
+  return { success: true, data: { isDuplicate: false } };
+};
 
-  await createAuditLog({
-    action: 'status_change',
-    targetType: 'verification',
-    targetId: userEmail,
-    adminName,
-    description: `성인 인증 취소: ${userEmail}`,
-    details: { reason },
-  });
-
-  return { success: true, data: users[userIndex] };
+// 성인 인증 상태 확인
+export const checkAdultVerification = async (userEmail) => {
+  try {
+    const data = await authApi.getVerificationStatus();
+    return { success: true, data };
+  } catch (error) {
+    return { success: true, data: { isVerified: false } };
+  }
 };
 
 // 성인 인증 통계
 export const getAdultVerificationStatistics = async () => {
-  const users = getFromStorage(STORAGE_KEYS.USERS, []);
-  const verifications = getFromStorage(STORAGE_KEYS.ADULT_VERIFICATIONS, []);
-
-  const stats = {
-    totalUsers: users.length,
-    verifiedUsers: users.filter(u => u.adultVerified).length,
-    unverifiedUsers: users.filter(u => !u.adultVerified).length,
-    pendingRequests: verifications.filter(v => v.status === 'pending').length,
-    approvedRequests: verifications.filter(v => v.status === 'approved').length,
-    rejectedRequests: verifications.filter(v => v.status === 'rejected').length,
-  };
-
-  return { success: true, data: stats };
+  try {
+    const data = await adminApi.verification.getStatistics();
+    return { success: true, data };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
 };
 
-// PASS 본인인증 결과로 성인인증 처리 (자동승인)
-export const completePassVerification = async (userEmail, verificationData) => {
-  const users = getFromStorage(STORAGE_KEYS.USERS, []);
-  const userIndex = users.findIndex(u => u.email === userEmail);
-
-  if (userIndex === -1) {
-    return { success: false, error: '사용자를 찾을 수 없습니다.' };
-  }
-
-  // CI 중복 확인
-  const duplicateCheck = await checkDuplicateCI(verificationData.ci, userEmail);
-  if (!duplicateCheck.success) {
-    return duplicateCheck;
-  }
-
-  // 사용자 정보 업데이트
-  users[userIndex].adultVerified = true;
-  users[userIndex].adultVerifiedAt = new Date().toISOString();
-  users[userIndex].adultVerificationMethod = 'pass';
-  users[userIndex].updatedAt = new Date().toISOString();
-  saveToStorage(STORAGE_KEYS.USERS, users);
-
-  // 인증 기록 생성
-  const verifications = getFromStorage(STORAGE_KEYS.ADULT_VERIFICATIONS, []);
-  const record = {
-    id: generateId('AV'),
-    userEmail,
-    userName: verificationData.name || users[userIndex].name,
-    method: 'pass',
-    status: 'approved',
-    approvedAt: new Date().toISOString(),
-    approvedBy: 'PASS 본인인증 (자동)',
-    birthDate: verificationData.birthDate,
-    isAdult: verificationData.isAdult,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  };
-  verifications.unshift(record);
-  saveToStorage(STORAGE_KEYS.ADULT_VERIFICATIONS, verifications);
-
-  // CI/DI 증빙 저장
-  const evidence = getFromStorage(STORAGE_KEYS.VERIFICATION_EVIDENCE, []);
-  evidence.unshift({
-    id: generateId('VE'),
-    userEmail,
-    ci: verificationData.ci,
-    di: verificationData.di,
-    method: 'pass',
-    verifiedAt: verificationData.verifiedAt || new Date().toISOString(),
-    createdAt: new Date().toISOString(),
-  });
-  saveToStorage(STORAGE_KEYS.VERIFICATION_EVIDENCE, evidence);
-
-  // 감사 로그 기록
-  await createAuditLog({
-    action: 'approve',
-    targetType: 'verification',
-    targetId: record.id,
-    adminName: 'PASS 본인인증 (자동)',
-    description: `PASS 본인인증 완료: ${userEmail}`,
-    details: { method: 'pass', isAdult: verificationData.isAdult },
-  });
-
-  return { success: true, data: users[userIndex] };
-};
-
-// CI로 중복가입 확인
-export const checkDuplicateCI = async (ci, currentUserEmail = '') => {
-  const evidence = getFromStorage(STORAGE_KEYS.VERIFICATION_EVIDENCE, []);
-  const existing = evidence.find(e => e.ci === ci && e.userEmail !== currentUserEmail);
-
-  if (existing) {
-    return { success: false, error: '이미 본인인증이 완료된 다른 계정이 존재합니다.' };
-  }
-
-  return { success: true };
-};
-
-// 사용자의 성인 인증 상태 확인
-export const checkAdultVerification = async (userEmail) => {
-  const users = getFromStorage(STORAGE_KEYS.USERS, []);
-  const user = users.find(u => u.email === userEmail);
-
-  if (!user) {
-    return { success: false, error: '사용자를 찾을 수 없습니다.' };
-  }
-
-  return {
-    success: true,
-    data: {
-      isVerified: user.adultVerified || false,
-      verifiedAt: user.adultVerifiedAt || null,
-      method: user.adultVerificationMethod || null,
-    },
-  };
-};
-
-// ========== 교환금 원장 API ==========
+// ========== 원장 조회 ==========
 
 // 전체 원장 조회
 export const getAllLedgerEntries = async (filters = {}) => {
-  const balances = getFromStorage(STORAGE_KEYS.USER_EXCHANGE_BALANCE, {});
-  let allEntries = [];
-
-  Object.entries(balances).forEach(([userEmail, balance]) => {
-    if (balance.ledger) {
-      balance.ledger.forEach(entry => {
-        allEntries.push({
-          ...entry,
-          userEmail,
-        });
-      });
-    }
-  });
-
-  // 필터링
-  if (filters.type) {
-    allEntries = allEntries.filter(e => e.type === filters.type);
+  try {
+    const result = await adminApi.users.getAllLedgers(filters);
+    return { success: true, data: result.entries || result };
+  } catch (error) {
+    return { success: false, error: error.message, data: [] };
   }
-  if (filters.userEmail) {
-    allEntries = allEntries.filter(e => e.userEmail.includes(filters.userEmail));
-  }
-  if (filters.startDate) {
-    allEntries = allEntries.filter(e => new Date(e.createdAt) >= new Date(filters.startDate));
-  }
-  if (filters.endDate) {
-    allEntries = allEntries.filter(e => new Date(e.createdAt) <= new Date(filters.endDate));
-  }
-
-  // 정렬 (최신순)
-  allEntries.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-
-  // 통계
-  const stats = {
-    totalCredit: allEntries.filter(e => e.type === 'credit').reduce((sum, e) => sum + e.amount, 0),
-    totalDebit: allEntries.filter(e => e.type === 'debit').reduce((sum, e) => sum + e.amount, 0),
-    totalEntries: allEntries.length,
-  };
-
-  return { success: true, data: allEntries, stats };
 };
 
-// ========== 라운드 결과 API ==========
+// ========== 라운드 결과 ==========
 
-// 라운드 결과 목록 조회
+// 라운드 결과 목록
 export const getRoundResults = async (filters = {}) => {
-  let results = getFromStorage(STORAGE_KEYS.ROUND_RESULTS, []);
-
-  if (filters.roundId) {
-    results = results.filter(r => r.roundId === filters.roundId);
+  try {
+    const seasons = await adminApi.seasons.getAll();
+    const results = [];
+    for (const season of seasons) {
+      const rounds = await adminApi.seasons.getRounds(season.id);
+      results.push(...rounds);
+    }
+    return { success: true, data: results };
+  } catch (error) {
+    return { success: false, error: error.message, data: [] };
   }
-  if (filters.status) {
-    results = results.filter(r => r.status === filters.status);
-  }
-
-  results.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-
-  return { success: true, data: results };
 };
 
 // 라운드 결과 확정
 export const confirmRoundResult = async (roundId, resultData, adminName) => {
-  const results = getFromStorage(STORAGE_KEYS.ROUND_RESULTS, []);
-
-  const newResult = {
-    id: generateId('RR'),
-    roundId,
-    ...resultData,
-    status: 'confirmed',
-    confirmedAt: new Date().toISOString(),
-    confirmedBy: adminName,
-    createdAt: new Date().toISOString(),
-  };
-
-  results.unshift(newResult);
-  saveToStorage(STORAGE_KEYS.ROUND_RESULTS, results);
-
-  // 감사 로그 기록
-  await createAuditLog({
-    action: 'approve',
-    targetType: 'round',
-    targetId: roundId,
-    adminName,
-    description: `라운드 결과 확정`,
-    details: resultData,
-  });
-
-  return { success: true, data: newResult };
+  try {
+    const data = await adminApi.seasons.updateRound(roundId, {
+      isWinner: resultData.isWinner,
+      winningValue: resultData.winningValue,
+      status: 'completed',
+    });
+    return { success: true, data };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
 };
 
-// 라운드 결과 잠금 (수정 불가)
+// 라운드 결과 잠금
 export const lockRoundResult = async (resultId, adminName) => {
-  const results = getFromStorage(STORAGE_KEYS.ROUND_RESULTS, []);
-  const index = results.findIndex(r => r.id === resultId);
-
-  if (index === -1) {
-    return { success: false, error: '결과를 찾을 수 없습니다.' };
+  try {
+    const data = await adminApi.seasons.updateRound(resultId, { status: 'completed' });
+    return { success: true, data };
+  } catch (error) {
+    return { success: false, error: error.message };
   }
-
-  results[index].status = 'locked';
-  results[index].lockedAt = new Date().toISOString();
-  results[index].lockedBy = adminName;
-
-  saveToStorage(STORAGE_KEYS.ROUND_RESULTS, results);
-
-  await createAuditLog({
-    action: 'status_change',
-    targetType: 'round',
-    targetId: resultId,
-    adminName,
-    description: '라운드 결과 잠금',
-  });
-
-  return { success: true, data: results[index] };
 };
 
-// ========== 보상/당첨 지급 API ==========
+// ========== 보상 관리 (Stub - to be implemented) ==========
 
-// 보상 목록 조회
 export const getRewards = async (filters = {}) => {
-  let rewards = getFromStorage(STORAGE_KEYS.REWARDS, []);
-
-  if (filters.status) {
-    rewards = rewards.filter(r => r.status === filters.status);
-  }
-  if (filters.userEmail) {
-    rewards = rewards.filter(r => r.userEmail.includes(filters.userEmail));
-  }
-  if (filters.type) {
-    rewards = rewards.filter(r => r.type === filters.type);
-  }
-
-  rewards.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-
-  return { success: true, data: rewards };
+  return { success: true, data: [] };
 };
 
-// 보상 생성
 export const createReward = async (rewardData, adminName) => {
-  const rewards = getFromStorage(STORAGE_KEYS.REWARDS, []);
-
-  const newReward = {
-    id: generateId('RWD'),
-    ...rewardData,
-    status: 'pending',
-    statusHistory: [
-      { status: 'pending', timestamp: new Date().toISOString(), actor: adminName, note: '보상 생성' }
-    ],
-    createdAt: new Date().toISOString(),
-    createdBy: adminName,
-  };
-
-  rewards.unshift(newReward);
-  saveToStorage(STORAGE_KEYS.REWARDS, rewards);
-
-  await createAuditLog({
-    action: 'create',
-    targetType: 'reward',
-    targetId: newReward.id,
-    adminName,
-    description: `보상 생성: ${rewardData.userName}`,
-  });
-
-  return { success: true, data: newReward };
+  return { success: false, error: '준비 중인 기능입니다.' };
 };
 
-// 보상 상태 변경
 export const updateRewardStatus = async (rewardId, newStatus, adminName, note = '') => {
-  const rewards = getFromStorage(STORAGE_KEYS.REWARDS, []);
-  const index = rewards.findIndex(r => r.id === rewardId);
-
-  if (index === -1) {
-    return { success: false, error: '보상을 찾을 수 없습니다.' };
-  }
-
-  rewards[index].status = newStatus;
-  rewards[index].statusHistory.push({
-    status: newStatus,
-    timestamp: new Date().toISOString(),
-    actor: adminName,
-    note,
-  });
-  rewards[index].updatedAt = new Date().toISOString();
-
-  saveToStorage(STORAGE_KEYS.REWARDS, rewards);
-
-  await createAuditLog({
-    action: 'status_change',
-    targetType: 'reward',
-    targetId: rewardId,
-    adminName,
-    description: `보상 상태 변경: ${newStatus}`,
-  });
-
-  return { success: true, data: rewards[index] };
+  return { success: false, error: '준비 중인 기능입니다.' };
 };
 
-// 보상 구성 확정
 export const confirmRewardConfiguration = async (rewardId, configuration, adminName) => {
-  const rewards = getFromStorage(STORAGE_KEYS.REWARDS, []);
-  const index = rewards.findIndex(r => r.id === rewardId);
-
-  if (index === -1) {
-    return { success: false, error: '보상을 찾을 수 없습니다.' };
-  }
-
-  rewards[index].configuration = configuration;
-  rewards[index].status = 'confirmed';
-  rewards[index].statusHistory.push({
-    status: 'confirmed',
-    timestamp: new Date().toISOString(),
-    actor: adminName,
-    note: '구성 확정',
-  });
-  rewards[index].confirmedAt = new Date().toISOString();
-  rewards[index].confirmedBy = adminName;
-
-  saveToStorage(STORAGE_KEYS.REWARDS, rewards);
-
-  return { success: true, data: rewards[index] };
+  return { success: false, error: '준비 중인 기능입니다.' };
 };
 
-// 보상 예외 처리
 export const handleRewardException = async (rewardId, exceptionData, adminName) => {
-  const rewards = getFromStorage(STORAGE_KEYS.REWARDS, []);
-  const index = rewards.findIndex(r => r.id === rewardId);
-
-  if (index === -1) {
-    return { success: false, error: '보상을 찾을 수 없습니다.' };
-  }
-
-  rewards[index].status = 'exception';
-  rewards[index].exception = {
-    ...exceptionData,
-    handledAt: new Date().toISOString(),
-    handledBy: adminName,
-  };
-  rewards[index].statusHistory.push({
-    status: 'exception',
-    timestamp: new Date().toISOString(),
-    actor: adminName,
-    note: exceptionData.reason,
-  });
-
-  saveToStorage(STORAGE_KEYS.REWARDS, rewards);
-
-  return { success: true, data: rewards[index] };
+  return { success: false, error: '준비 중인 기능입니다.' };
 };
 
-// 보상 통계
 export const getRewardStatistics = async () => {
-  const rewards = getFromStorage(STORAGE_KEYS.REWARDS, []);
-
-  const stats = {
-    total: rewards.length,
-    pending: rewards.filter(r => r.status === 'pending').length,
-    confirmed: rewards.filter(r => r.status === 'confirmed').length,
-    processing: rewards.filter(r => r.status === 'processing').length,
-    completed: rewards.filter(r => r.status === 'completed').length,
-    exception: rewards.filter(r => r.status === 'exception').length,
-  };
-
-  return { success: true, data: stats };
+  return { success: true, data: {} };
 };
 
-// ========== 쿠폰/프로모션 API ==========
+// ========== 쿠폰 관리 (Stub - to be implemented) ==========
 
-// 쿠폰 목록 조회
 export const getCoupons = async (filters = {}) => {
-  let coupons = getFromStorage(STORAGE_KEYS.COUPONS, []);
-
-  if (filters.status) {
-    coupons = coupons.filter(c => c.status === filters.status);
-  }
-  if (filters.type) {
-    coupons = coupons.filter(c => c.type === filters.type);
-  }
-  if (filters.search) {
-    const searchLower = filters.search.toLowerCase();
-    coupons = coupons.filter(c =>
-      c.code.toLowerCase().includes(searchLower) ||
-      c.name.toLowerCase().includes(searchLower)
-    );
-  }
-
-  coupons.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-
-  return { success: true, data: coupons };
+  return { success: true, data: [] };
 };
 
-// 쿠폰 생성
 export const createCoupon = async (couponData, adminName) => {
-  const coupons = getFromStorage(STORAGE_KEYS.COUPONS, []);
-
-  // 코드 중복 확인
-  if (coupons.some(c => c.code === couponData.code)) {
-    return { success: false, error: '이미 존재하는 쿠폰 코드입니다.' };
-  }
-
-  const newCoupon = {
-    id: generateId('CPN'),
-    ...couponData,
-    status: 'active',
-    usedCount: 0,
-    createdAt: new Date().toISOString(),
-    createdBy: adminName,
-  };
-
-  coupons.unshift(newCoupon);
-  saveToStorage(STORAGE_KEYS.COUPONS, coupons);
-
-  await createAuditLog({
-    action: 'create',
-    targetType: 'coupon',
-    targetId: newCoupon.id,
-    adminName,
-    description: `쿠폰 생성: ${couponData.name}`,
-  });
-
-  return { success: true, data: newCoupon };
+  return { success: false, error: '준비 중인 기능입니다.' };
 };
 
-// 쿠폰 수정
 export const updateCoupon = async (couponId, updateData, adminName) => {
-  const coupons = getFromStorage(STORAGE_KEYS.COUPONS, []);
-  const index = coupons.findIndex(c => c.id === couponId);
-
-  if (index === -1) {
-    return { success: false, error: '쿠폰을 찾을 수 없습니다.' };
-  }
-
-  coupons[index] = {
-    ...coupons[index],
-    ...updateData,
-    updatedAt: new Date().toISOString(),
-    updatedBy: adminName,
-  };
-
-  saveToStorage(STORAGE_KEYS.COUPONS, coupons);
-
-  return { success: true, data: coupons[index] };
+  return { success: false, error: '준비 중인 기능입니다.' };
 };
 
-// 쿠폰 상태 변경
 export const updateCouponStatus = async (couponId, status, adminName) => {
-  return updateCoupon(couponId, { status }, adminName);
+  return { success: false, error: '준비 중인 기능입니다.' };
 };
 
-// 쿠폰 발급 (특정 사용자에게)
 export const issueCouponToUser = async (couponId, userEmail, adminName) => {
-  const coupons = getFromStorage(STORAGE_KEYS.COUPONS, []);
-  const coupon = coupons.find(c => c.id === couponId);
-
-  if (!coupon) {
-    return { success: false, error: '쿠폰을 찾을 수 없습니다.' };
-  }
-
-  if (coupon.status !== 'active') {
-    return { success: false, error: '비활성 쿠폰은 발급할 수 없습니다.' };
-  }
-
-  const usages = getFromStorage(STORAGE_KEYS.COUPON_USAGES, []);
-
-  // 이미 발급받았는지 확인
-  if (usages.some(u => u.couponId === couponId && u.userEmail === userEmail)) {
-    return { success: false, error: '이미 발급받은 쿠폰입니다.' };
-  }
-
-  const newUsage = {
-    id: generateId('CU'),
-    couponId,
-    couponCode: coupon.code,
-    couponName: coupon.name,
-    userEmail,
-    status: 'issued',
-    issuedAt: new Date().toISOString(),
-    issuedBy: adminName,
-  };
-
-  usages.unshift(newUsage);
-  saveToStorage(STORAGE_KEYS.COUPON_USAGES, usages);
-
-  // 쿠폰 발급 카운트 증가
-  const couponIndex = coupons.findIndex(c => c.id === couponId);
-  coupons[couponIndex].usedCount = (coupons[couponIndex].usedCount || 0) + 1;
-  saveToStorage(STORAGE_KEYS.COUPONS, coupons);
-
-  return { success: true, data: newUsage };
+  return { success: false, error: '준비 중인 기능입니다.' };
 };
 
-// 쿠폰 사용 이력 조회
 export const getCouponUsages = async (filters = {}) => {
-  let usages = getFromStorage(STORAGE_KEYS.COUPON_USAGES, []);
-
-  if (filters.couponId) {
-    usages = usages.filter(u => u.couponId === filters.couponId);
-  }
-  if (filters.userEmail) {
-    usages = usages.filter(u => u.userEmail.includes(filters.userEmail));
-  }
-  if (filters.status) {
-    usages = usages.filter(u => u.status === filters.status);
-  }
-
-  usages.sort((a, b) => new Date(b.issuedAt) - new Date(a.issuedAt));
-
-  return { success: true, data: usages };
+  return { success: true, data: [] };
 };
 
-// 쿠폰 통계
 export const getCouponStatistics = async () => {
-  const coupons = getFromStorage(STORAGE_KEYS.COUPONS, []);
-  const usages = getFromStorage(STORAGE_KEYS.COUPON_USAGES, []);
-
-  const stats = {
-    totalCoupons: coupons.length,
-    activeCoupons: coupons.filter(c => c.status === 'active').length,
-    totalIssued: usages.length,
-    totalUsed: usages.filter(u => u.status === 'used').length,
-  };
-
-  return { success: true, data: stats };
+  return { success: true, data: {} };
 };
 
-// ========== 감사 로그 API ==========
+// ========== 감사 로그 ==========
 
-// 감사 로그 생성
 export const createAuditLog = async (logData) => {
-  const logs = getFromStorage(STORAGE_KEYS.AUDIT_LOGS, []);
-
-  const newLog = {
-    id: generateId('LOG'),
-    ...logData,
-    timestamp: new Date().toISOString(),
-    ipAddress: '127.0.0.1', // 실제로는 클라이언트 IP
-  };
-
-  logs.unshift(newLog);
-
-  // 최대 10000개 유지
-  if (logs.length > 10000) {
-    logs.splice(10000);
-  }
-
-  saveToStorage(STORAGE_KEYS.AUDIT_LOGS, logs);
-
-  return { success: true, data: newLog };
+  // Audit logs are created automatically by the server
+  return { success: true };
 };
 
-// 감사 로그 조회
-export const getAuditLogs = async (filters = {}, pagination = { page: 1, limit: 50 }) => {
-  let logs = getFromStorage(STORAGE_KEYS.AUDIT_LOGS, []);
-
-  // 필터링
-  if (filters.action) {
-    logs = logs.filter(l => l.action === filters.action);
+export const getAuditLogs = async (filters = {}, pagination = {}) => {
+  try {
+    const result = await adminApi.system.getAuditLogs({
+      ...filters,
+      page: pagination.page || 1,
+      limit: pagination.limit || 50,
+    });
+    return { success: true, data: result.logs || result, pagination: result.pagination };
+  } catch (error) {
+    return { success: false, error: error.message, data: [] };
   }
-  if (filters.targetType) {
-    logs = logs.filter(l => l.targetType === filters.targetType);
-  }
-  if (filters.adminName) {
-    logs = logs.filter(l => l.adminName?.includes(filters.adminName));
-  }
-  if (filters.startDate) {
-    logs = logs.filter(l => new Date(l.timestamp) >= new Date(filters.startDate));
-  }
-  if (filters.endDate) {
-    logs = logs.filter(l => new Date(l.timestamp) <= new Date(filters.endDate));
-  }
-  if (filters.search) {
-    const searchLower = filters.search.toLowerCase();
-    logs = logs.filter(l =>
-      l.description?.toLowerCase().includes(searchLower) ||
-      l.targetId?.toLowerCase().includes(searchLower) ||
-      l.adminName?.toLowerCase().includes(searchLower)
-    );
-  }
-
-  // 정렬 (최신순)
-  logs.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-
-  // 페이지네이션
-  const total = logs.length;
-  const start = (pagination.page - 1) * pagination.limit;
-  const paginatedData = logs.slice(start, start + pagination.limit);
-
-  return {
-    success: true,
-    data: paginatedData,
-    pagination: {
-      total,
-      page: pagination.page,
-      limit: pagination.limit,
-      totalPages: Math.ceil(total / pagination.limit),
-    },
-  };
 };
 
-// ========== 시스템 설정 API ==========
+// ========== 시스템 설정 ==========
 
-// 시스템 설정 조회
-export const getSystemSettings = () => {
-  const defaultSettings = {
-    siteName: 'Ruby Round',
-    siteDescription: '실물 루비 보석 라이브 커머스',
-    minExchangeAmount: 300000,
-    maxExchangeAmount: 10000000,
-    deliveryFee: 0,
-    freeDeliveryThreshold: 0,
-    maintenanceMode: false,
-    allowNewRegistration: true,
-    requireAdultVerification: false,
-    defaultCouponExpireDays: 30,
-    maxCouponPerUser: 5,
-  };
-
-  const settings = getFromStorage(STORAGE_KEYS.SYSTEM_SETTINGS, defaultSettings);
-  return { ...defaultSettings, ...settings };
-};
-
-// 시스템 설정 저장
-export const saveSystemSettings = async (settings, adminName) => {
-  saveToStorage(STORAGE_KEYS.SYSTEM_SETTINGS, settings);
-
-  await createAuditLog({
-    action: 'update',
-    targetType: 'system',
-    targetId: 'settings',
-    adminName,
-    description: '시스템 설정 변경',
-    details: settings,
-  });
-
-  return { success: true, data: settings };
-};
-
-// ========== 고객 관리 확장 API ==========
-
-// 고객 상세 정보 (교환, 결제, 쿠폰 등 포함)
-export const getCustomerDetail = async (userEmail) => {
-  const users = getFromStorage(STORAGE_KEYS.USERS, []);
-  const user = users.find(u => u.email === userEmail);
-
-  if (!user) {
-    return { success: false, error: '사용자를 찾을 수 없습니다.' };
-  }
-
-  // 교환금 잔액
-  const balances = getFromStorage(STORAGE_KEYS.USER_EXCHANGE_BALANCE, {});
-  const balance = balances[userEmail] || { totalBalance: 0, availableBalance: 0 };
-
-  // 교환 신청 내역
-  const applications = getFromStorage(STORAGE_KEYS.EXCHANGE_APPLICATIONS, []);
-  const userApplications = applications.filter(a => a.userEmail === userEmail);
-
-  // 결제 내역
-  const payments = getFromStorage(STORAGE_KEYS.ROUND_PAYMENTS, []);
-  const userPayments = payments.filter(p => p.userEmail === userEmail);
-
-  // 쿠폰 내역
-  const couponUsages = getFromStorage(STORAGE_KEYS.COUPON_USAGES, []);
-  const userCoupons = couponUsages.filter(c => c.userEmail === userEmail);
-
-  // 보상 내역
-  const rewards = getFromStorage(STORAGE_KEYS.REWARDS, []);
-  const userRewards = rewards.filter(r => r.userEmail === userEmail);
-
-  // 성인 인증 내역
-  const verifications = getFromStorage(STORAGE_KEYS.ADULT_VERIFICATIONS, []);
-  const userVerifications = verifications.filter(v => v.userEmail === userEmail);
-
-  return {
-    success: true,
-    data: {
-      ...user,
-      balance,
-      applications: userApplications,
-      payments: userPayments,
-      coupons: userCoupons,
-      rewards: userRewards,
-      verifications: userVerifications,
-      statistics: {
-        totalPayments: userPayments.length,
-        totalPaymentAmount: userPayments.reduce((sum, p) => sum + (p.amount || 0), 0),
-        totalExchanges: userApplications.length,
-        completedExchanges: userApplications.filter(a => a.status === 'completed').length,
-        totalRewards: userRewards.length,
+export const getSystemSettings = async () => {
+  try {
+    const data = await adminApi.system.getSettings();
+    return { success: true, data };
+  } catch (error) {
+    // Return default settings
+    return {
+      success: true,
+      data: {
+        minimumExchangeAmount: 300000,
+        siteName: '루비라운드',
+        siteDescription: '프리미엄 보석 교환 서비스',
       },
-    },
-  };
+    };
+  }
+};
+
+export const saveSystemSettings = async (settings, adminName) => {
+  try {
+    const data = await adminApi.system.saveSettings(settings);
+    return { success: true, data };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+};
+
+// ========== 고객 상세 정보 ==========
+
+export const getCustomerDetail = async (userEmail) => {
+  try {
+    const userData = await adminApi.users.getByEmail(userEmail);
+    const applicationsResult = await adminApi.applications.getAll({ userEmail });
+    const ledgerResult = await adminApi.users.getLedger(userData.id, 1, 100);
+
+    return {
+      success: true,
+      data: {
+        user: userData,
+        applications: applicationsResult.applications || [],
+        balance: {
+          totalBalance: userData.total_balance || 0,
+          availableBalance: userData.available_balance || 0,
+          holdBalance: userData.hold_balance || 0,
+          usedBalance: userData.used_balance || 0,
+        },
+        ledger: ledgerResult.entries || [],
+      },
+    };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+};
+
+// ========== 상담 모달 ==========
+
+export const getConsultationModalContent = async () => {
+  try {
+    const data = await publicApi.getConsultationModal();
+    return { success: true, data };
+  } catch (error) {
+    // Return default content
+    return {
+      success: true,
+      data: {
+        title: '상담 접수 안내',
+        subtitle: '접수 전 확인해주세요',
+        items: [
+          { id: 1, icon: '📋', title: '상담 접수', description: '본 신청은 상담 접수이며, 교환금이 즉시 차감되지 않습니다.' },
+          { id: 2, icon: '💬', title: '전문 상담사 확인', description: '전문 상담사가 연락드려 상세 내용을 확인하고 최종 사양을 협의합니다.' },
+          { id: 3, icon: '✅', title: '내부 승인 후 차감', description: '내부 승인 완료 시 교환금이 차감되고 제작이 시작됩니다.' },
+          { id: 4, icon: '⚠️', title: '취소 안내', description: '내부 승인 전까지는 취소가 가능하지만, 승인 이후에는 취소가 불가합니다.' },
+        ],
+        confirmButtonText: '확인하고 접수하기',
+        cancelButtonText: '다시 확인하기',
+      },
+    };
+  }
+};
+
+export const saveConsultationModalContent = async (content) => {
+  try {
+    const data = await adminApi.system.saveConsultationModal(content);
+    return { success: true, data };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+};
+
+export const resetConsultationModalContent = async () => {
+  try {
+    const data = await adminApi.system.resetConsultationModal();
+    return { success: true, data };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
 };

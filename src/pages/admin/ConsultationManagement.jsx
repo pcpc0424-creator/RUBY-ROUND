@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { STORAGE_KEYS } from '../../constants/exchangeConstants';
+import { adminApi } from '../../api/apiClient';
 
 // 채널 옵션
 const CHANNELS = [
@@ -17,11 +17,11 @@ const STATUSES = [
 ];
 
 
-// 문의 상태 옵션
+// 문의 상태 옵션 (DB 상태 값 매핑)
 const INQUIRY_STATUSES = [
-  { value: 'new', label: '신규', color: 'bg-blue-500' },
+  { value: 'pending', label: '신규', color: 'bg-blue-500' },
   { value: 'in_progress', label: '처리중', color: 'bg-yellow-500' },
-  { value: 'completed', label: '답변완료', color: 'bg-green-500' },
+  { value: 'resolved', label: '답변완료', color: 'bg-green-500' },
 ];
 
 export default function ConsultationManagement() {
@@ -40,41 +40,67 @@ export default function ConsultationManagement() {
   const [selectedInquiry, setSelectedInquiry] = useState(null);
   const [showInquiryModal, setShowInquiryModal] = useState(false);
   const [adminReply, setAdminReply] = useState('');
+  const [loading, setLoading] = useState(false);
 
   // 웹 문의 로드
-  useEffect(() => {
-    const stored = JSON.parse(localStorage.getItem(STORAGE_KEYS.CONTACT_INQUIRIES) || '[]');
-    setInquiries(stored);
-  }, []);
-
-  // 문의 상태 변경
-  const updateInquiryStatus = (id, newStatus) => {
-    const updated = inquiries.map(inq => inq.id === id ? { ...inq, status: newStatus, updatedAt: new Date().toISOString() } : inq);
-    setInquiries(updated);
-    localStorage.setItem(STORAGE_KEYS.CONTACT_INQUIRIES, JSON.stringify(updated));
-    if (selectedInquiry?.id === id) {
-      setSelectedInquiry({ ...selectedInquiry, status: newStatus, updatedAt: new Date().toISOString() });
+  const loadInquiries = async () => {
+    try {
+      setLoading(true);
+      const result = await adminApi.system.getInquiries({ search: inquirySearchTerm });
+      setInquiries(result.inquiries || []);
+    } catch (error) {
+      console.error('Failed to load inquiries:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
-  // 관리자 메모 저장
-  const saveAdminReply = (id) => {
+  useEffect(() => {
+    if (activeTab === 'inquiry') {
+      loadInquiries();
+    }
+  }, [activeTab]);
+
+  // 문의 상태 변경
+  const updateInquiryStatus = async (id, newStatus) => {
+    try {
+      const result = await adminApi.system.updateInquiryStatus(id, newStatus);
+      setInquiries(inquiries.map(inq => inq.id === id ? result : inq));
+      if (selectedInquiry?.id === id) {
+        setSelectedInquiry(result);
+      }
+    } catch (error) {
+      console.error('Failed to update inquiry status:', error);
+      alert('상태 변경에 실패했습니다.');
+    }
+  };
+
+  // 관리자 답변 저장
+  const saveAdminReply = async (id) => {
     if (!adminReply.trim()) return;
-    const updated = inquiries.map(inq => inq.id === id ? { ...inq, adminReply: adminReply, status: 'completed', updatedAt: new Date().toISOString() } : inq);
-    setInquiries(updated);
-    localStorage.setItem(STORAGE_KEYS.CONTACT_INQUIRIES, JSON.stringify(updated));
-    setSelectedInquiry({ ...selectedInquiry, adminReply: adminReply, status: 'completed', updatedAt: new Date().toISOString() });
-    setAdminReply('');
+    try {
+      const result = await adminApi.system.respondToInquiry(id, adminReply);
+      setInquiries(inquiries.map(inq => inq.id === id ? result : inq));
+      setSelectedInquiry(result);
+      setAdminReply('');
+    } catch (error) {
+      console.error('Failed to save reply:', error);
+      alert('답변 저장에 실패했습니다.');
+    }
   };
 
   // 문의 삭제
-  const deleteInquiry = (id) => {
+  const deleteInquiry = async (id) => {
     if (!confirm('정말 삭제하시겠습니까?')) return;
-    const updated = inquiries.filter(inq => inq.id !== id);
-    setInquiries(updated);
-    localStorage.setItem(STORAGE_KEYS.CONTACT_INQUIRIES, JSON.stringify(updated));
-    setShowInquiryModal(false);
-    setSelectedInquiry(null);
+    try {
+      await adminApi.system.deleteInquiry(id);
+      setInquiries(inquiries.filter(inq => inq.id !== id));
+      setShowInquiryModal(false);
+      setSelectedInquiry(null);
+    } catch (error) {
+      console.error('Failed to delete inquiry:', error);
+      alert('삭제에 실패했습니다.');
+    }
   };
 
   // 문의 검색 필터링
@@ -84,8 +110,7 @@ export default function ConsultationManagement() {
     return (
       inq.name?.toLowerCase().includes(term) ||
       inq.email?.toLowerCase().includes(term) ||
-      inq.title?.toLowerCase().includes(term) ||
-      inq.category?.toLowerCase().includes(term)
+      inq.subject?.toLowerCase().includes(term)
     );
   });
 
@@ -228,7 +253,7 @@ export default function ConsultationManagement() {
   // 회원 검색 필터링 (실제 회원 데이터 연동 필요)
   const filteredMembers = [];
 
-  const newInquiryCount = inquiries.filter(inq => inq.status === 'new').length;
+  const newInquiryCount = inquiries.filter(inq => inq.status === 'pending').length;
 
   return (
     <div className="space-y-6">
@@ -670,7 +695,7 @@ export default function ConsultationManagement() {
           <div className="relative">
             <input
               type="text"
-              placeholder="이름, 이메일, 제목, 유형으로 검색..."
+              placeholder="이름, 이메일, 제목으로 검색..."
               value={inquirySearchTerm}
               onChange={(e) => setInquirySearchTerm(e.target.value)}
               className="w-full bg-dark-700 border border-dark-600 rounded-lg pl-10 pr-4 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-ruby-500"
@@ -690,7 +715,7 @@ export default function ConsultationManagement() {
           <div className="bg-dark-800 rounded-xl p-4 border border-dark-700">
             <div className="text-gray-400 text-sm">신규</div>
             <div className="text-2xl font-bold text-blue-400 mt-1">
-              {inquiries.filter(i => i.status === 'new').length}
+              {inquiries.filter(i => i.status === 'pending').length}
             </div>
           </div>
           <div className="bg-dark-800 rounded-xl p-4 border border-dark-700">
@@ -702,7 +727,7 @@ export default function ConsultationManagement() {
           <div className="bg-dark-800 rounded-xl p-4 border border-dark-700">
             <div className="text-gray-400 text-sm">답변완료</div>
             <div className="text-2xl font-bold text-green-400 mt-1">
-              {inquiries.filter(i => i.status === 'completed').length}
+              {inquiries.filter(i => i.status === 'resolved').length}
             </div>
           </div>
         </div>
@@ -714,7 +739,6 @@ export default function ConsultationManagement() {
               <thead>
                 <tr className="bg-dark-700/50 border-b border-dark-600">
                   <th className="text-left py-3 px-4 text-sm font-medium text-gray-400">접수일시</th>
-                  <th className="text-left py-3 px-4 text-sm font-medium text-gray-400">유형</th>
                   <th className="text-left py-3 px-4 text-sm font-medium text-gray-400">제목</th>
                   <th className="text-left py-3 px-4 text-sm font-medium text-gray-400">이름</th>
                   <th className="text-left py-3 px-4 text-sm font-medium text-gray-400">이메일</th>
@@ -722,9 +746,15 @@ export default function ConsultationManagement() {
                 </tr>
               </thead>
               <tbody>
-                {filteredInquiries.length === 0 ? (
+                {loading ? (
                   <tr>
-                    <td colSpan="6" className="text-center py-12 text-gray-500">
+                    <td colSpan="5" className="text-center py-12 text-gray-500">
+                      로딩 중...
+                    </td>
+                  </tr>
+                ) : filteredInquiries.length === 0 ? (
+                  <tr>
+                    <td colSpan="5" className="text-center py-12 text-gray-500">
                       {inquirySearchTerm ? '검색 결과가 없습니다.' : '접수된 문의가 없습니다.'}
                     </td>
                   </tr>
@@ -735,19 +765,14 @@ export default function ConsultationManagement() {
                       onClick={() => {
                         setSelectedInquiry(inquiry);
                         setShowInquiryModal(true);
-                        setAdminReply(inquiry.adminReply || '');
+                        setAdminReply(inquiry.response || '');
                       }}
                       className="border-b border-dark-700 hover:bg-dark-700/50 cursor-pointer transition-colors"
                     >
                       <td className="py-3 px-4 text-sm text-gray-300">
-                        {new Date(inquiry.createdAt).toLocaleString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                        {new Date(inquiry.created_at).toLocaleString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}
                       </td>
-                      <td className="py-3 px-4">
-                        <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-dark-600 text-gray-300">
-                          {inquiry.category}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4 text-white font-medium max-w-[200px] truncate">{inquiry.title}</td>
+                      <td className="py-3 px-4 text-white font-medium max-w-[200px] truncate">{inquiry.subject}</td>
                       <td className="py-3 px-4 text-sm text-gray-300">{inquiry.name}</td>
                       <td className="py-3 px-4 text-sm text-gray-300">{inquiry.email}</td>
                       <td className="py-3 px-4">
@@ -812,13 +837,9 @@ export default function ConsultationManagement() {
                 <div className="bg-dark-700/50 rounded-lg p-4">
                   <div className="grid grid-cols-2 gap-4 mb-4">
                     <div>
-                      <div className="text-xs text-gray-500 mb-1">유형</div>
-                      <div className="text-white text-sm">{selectedInquiry.category}</div>
-                    </div>
-                    <div>
                       <div className="text-xs text-gray-500 mb-1">접수일시</div>
                       <div className="text-white text-sm">
-                        {new Date(selectedInquiry.createdAt).toLocaleString('ko-KR')}
+                        {new Date(selectedInquiry.created_at).toLocaleString('ko-KR')}
                       </div>
                     </div>
                     <div>
@@ -838,22 +859,27 @@ export default function ConsultationManagement() {
                   </div>
                   <div>
                     <div className="text-xs text-gray-500 mb-1">제목</div>
-                    <div className="text-white font-medium">{selectedInquiry.title}</div>
+                    <div className="text-white font-medium">{selectedInquiry.subject}</div>
                   </div>
                 </div>
 
                 {/* 문의 내용 */}
                 <div className="bg-dark-700/50 rounded-lg p-4">
                   <div className="text-xs text-gray-500 mb-2">문의 내용</div>
-                  <p className="text-gray-300 text-sm whitespace-pre-wrap">{selectedInquiry.content}</p>
+                  <p className="text-gray-300 text-sm whitespace-pre-wrap">{selectedInquiry.message}</p>
                 </div>
 
                 {/* 관리자 답변 */}
                 <div className="bg-dark-700/50 rounded-lg p-4">
                   <div className="text-xs text-gray-500 mb-2">관리자 메모 / 답변</div>
-                  {selectedInquiry.adminReply ? (
+                  {selectedInquiry.response ? (
                     <div className="bg-dark-600/50 rounded-lg p-3 mb-3">
-                      <p className="text-green-400 text-sm whitespace-pre-wrap">{selectedInquiry.adminReply}</p>
+                      <p className="text-green-400 text-sm whitespace-pre-wrap">{selectedInquiry.response}</p>
+                      {selectedInquiry.responded_by && (
+                        <p className="text-xs text-gray-500 mt-2">
+                          답변자: {selectedInquiry.responded_by} | {new Date(selectedInquiry.responded_at).toLocaleString('ko-KR')}
+                        </p>
+                      )}
                     </div>
                   ) : null}
                   <textarea

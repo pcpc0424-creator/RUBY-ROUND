@@ -10,13 +10,6 @@ const KAKAO_CHANNEL_PUBLIC_ID = '_xiJqhX';
 // 구글 설정
 const GOOGLE_CLIENT_ID = '719952954585-c1a0qjdfk2jo7ml11pou2ept5coc55r6.apps.googleusercontent.com';
 
-// 테스트 계정
-const TEST_ACCOUNT = {
-  email: 'test@ruby.com',
-  password: '1234',
-  name: '김루비',
-};
-
 export default function Login() {
   const navigate = useNavigate();
   const [isLogin, setIsLogin] = useState(true);
@@ -302,15 +295,6 @@ export default function Login() {
             회원가입
           </button>
         </div>
-
-        {/* Test Account Info */}
-        {isLogin && (
-          <div className="mb-4 p-3 bg-ruby-600/10 border border-ruby-600/30 rounded-lg text-sm animate-fade-in-up opacity-0" style={{ animationDelay: '0.25s', animationFillMode: 'forwards' }}>
-            <p className="text-ruby-400 font-medium mb-1">테스트 계정</p>
-            <p className="text-gray-400">이메일: <span className="text-white">test@ruby.com</span></p>
-            <p className="text-gray-400">비밀번호: <span className="text-white">1234</span></p>
-          </div>
-        )}
 
         {/* Error Message */}
         {error && (

@@ -1,21 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { STORAGE_KEYS } from '../constants/exchangeConstants';
-
-// Helper to get active season ID
-const getActiveSeasonId = () => {
-  try {
-    const seasonsData = localStorage.getItem(STORAGE_KEYS.SEASONS);
-    if (seasonsData) {
-      const seasons = JSON.parse(seasonsData);
-      const active = seasons.find(s => s.status === 'active') || seasons[0];
-      return active?.id || 'SEASON-1';
-    }
-  } catch {
-    // fallback
-  }
-  return 'SEASON-1';
-};
+import { seasonApi } from '../api/apiClient';
 
 const roundsData = [
   {
@@ -25,7 +10,7 @@ const roundsData = [
     price: 0,
     status: 'completed',
     participants: 1250,
-    seasonId: getActiveSeasonId(),
+    seasonId: 'SEASON-1',
     description: '무료 체험 라운드 - 실물 보상은 제공되지 않으며 시즌 누적 정보로만 반영됩니다.',
     details: '시즌의 세계관과 보석 채굴 구조를 체험해보세요. 무료로 참여할 수 있으며, 시즌 참여 경험을 쌓을 수 있습니다.',
     benefits: [
@@ -41,7 +26,7 @@ const roundsData = [
     price: 500000,
     status: 'completed',
     participants: 890,
-    seasonId: getActiveSeasonId(),
+    seasonId: 'SEASON-1',
     description: '참여비는 루비 보석 악세사리 구매를 위한 예약금입니다.',
     details: '보석 탐사의 첫 단계입니다. 기본 채굴이 시작되며, 초급 원석에 접근할 수 있습니다.',
     benefits: [
@@ -57,7 +42,7 @@ const roundsData = [
     price: 1000000,
     status: 'active',
     participants: 567,
-    seasonId: getActiveSeasonId(),
+    seasonId: 'SEASON-1',
     description: '참여비는 루비 보석 악세사리 구매를 위한 예약금입니다.',
     details: '본격적인 보석 발굴 단계입니다. 중급 원석에 접근하며, 보석의 품질이 향상됩니다.',
     benefits: [
@@ -74,7 +59,7 @@ const roundsData = [
     price: 1800000,
     status: 'upcoming',
     participants: 0,
-    seasonId: getActiveSeasonId(),
+    seasonId: 'SEASON-1',
     description: '참여비는 루비 보석 악세사리 구매를 위한 예약금입니다.',
     details: '더 깊은 화물 레이어를 개봉합니다. 보석의 크기와 밀도가 이전 라운드보다 증가합니다.',
     benefits: [
@@ -90,7 +75,7 @@ const roundsData = [
     price: 2500000,
     status: 'upcoming',
     participants: 0,
-    seasonId: getActiveSeasonId(),
+    seasonId: 'SEASON-1',
     description: '참여비는 루비 보석 악세사리 구매를 위한 예약금입니다.',
     details: '핵심 채굴 구역에 진입합니다. 희귀 원석의 발견 확률이 크게 상승합니다.',
     benefits: [
@@ -106,7 +91,7 @@ const roundsData = [
     price: 3500000,
     status: 'upcoming',
     participants: 0,
-    seasonId: getActiveSeasonId(),
+    seasonId: 'SEASON-1',
     description: '참여비는 루비 보석 악세사리 구매를 위한 예약금입니다.',
     details: '루비 광맥에 접근합니다. 고급 루비 원석을 채굴할 수 있는 기회가 열립니다.',
     benefits: [
@@ -122,7 +107,7 @@ const roundsData = [
     price: 5000000,
     status: 'upcoming',
     participants: 0,
-    seasonId: getActiveSeasonId(),
+    seasonId: 'SEASON-1',
     description: '참여비는 루비 보석 악세사리 구매를 위한 예약금입니다.',
     details: '시즌의 마지막 라운드입니다. 최고급 보석의 최종 추출이 이루어집니다.',
     benefits: [
@@ -141,34 +126,32 @@ export default function RoundJoin() {
   const [agreedToRefund, setAgreedToRefund] = useState(false);
 
   useEffect(() => {
-    // Try to load from localStorage first
-    try {
-      const seasonsData = localStorage.getItem(STORAGE_KEYS.SEASONS);
-      const storedRoundsData = localStorage.getItem(STORAGE_KEYS.ROUNDS);
+    const loadRound = async () => {
+      try {
+        const seasons = await seasonApi.getSeasons();
+        if (seasons && seasons.length > 0) {
+          const activeSeason = seasons.find(s => s.status === 'active') || seasons[0];
 
-      if (seasonsData && storedRoundsData) {
-        const seasons = JSON.parse(seasonsData);
-        const allRounds = JSON.parse(storedRoundsData);
-        const activeSeason = seasons.find(s => s.status === 'active') || seasons[0];
-
-        if (activeSeason) {
-          const seasonRounds = allRounds.filter(r => r.seasonId === activeSeason.id);
-          const foundRound = seasonRounds.find(r => r.id === id || r.id === `R${id}`);
-          if (foundRound) {
-            setRound(foundRound);
-            return;
+          if (activeSeason) {
+            const seasonRounds = await seasonApi.getRounds(activeSeason.id);
+            const foundRound = seasonRounds?.find(r => r.id === id || r.id === `R${id}`);
+            if (foundRound) {
+              setRound(foundRound);
+              return;
+            }
           }
         }
+      } catch {
+        // Fall through to default
       }
-    } catch {
-      // Fall through to default
-    }
 
-    // Fallback to hardcoded data
-    const foundRound = roundsData.find(r => r.id === id || r.id === `R${id}`);
-    if (foundRound) {
-      setRound(foundRound);
-    }
+      // Fallback to hardcoded data
+      const foundRound = roundsData.find(r => r.id === id || r.id === `R${id}`);
+      if (foundRound) {
+        setRound(foundRound);
+      }
+    };
+    loadRound();
   }, [id]);
 
   const handleJoin = () => {

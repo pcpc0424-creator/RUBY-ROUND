@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { STORAGE_KEYS } from '../constants/exchangeConstants';
+import { seasonApi } from '../api/apiClient';
 
 // Floating Particles for background
 function FloatingGems() {
@@ -20,17 +20,19 @@ function SeasonOverview() {
   const [activeSeason, setActiveSeason] = useState(null);
 
   useEffect(() => {
-    try {
-      const seasonsData = localStorage.getItem(STORAGE_KEYS.SEASONS);
-      if (seasonsData) {
-        const seasons = JSON.parse(seasonsData);
-        // Find active season first, then fallback to first season
-        const active = seasons.find(s => s.status === 'active') || seasons[0];
-        setActiveSeason(active);
+    const loadSeason = async () => {
+      try {
+        const seasons = await seasonApi.getSeasons();
+        if (seasons && seasons.length > 0) {
+          // Find active season first, then fallback to first season
+          const active = seasons.find(s => s.status === 'active') || seasons[0];
+          setActiveSeason(active);
+        }
+      } catch {
+        // Use default if error
       }
-    } catch {
-      // Use default if error
-    }
+    };
+    loadSeason();
   }, []);
 
   const seasonName = activeSeason?.name || 'Season 01';
@@ -178,46 +180,44 @@ function SeasonStructure() {
   const [stages, setStages] = useState(defaultStages);
 
   useEffect(() => {
-    try {
-      const seasonsData = localStorage.getItem(STORAGE_KEYS.SEASONS);
-      const roundsData = localStorage.getItem(STORAGE_KEYS.ROUNDS);
+    const loadStages = async () => {
+      try {
+        const seasons = await seasonApi.getSeasons();
+        if (!seasons || seasons.length === 0) return;
 
-      if (!seasonsData || !roundsData) return;
+        // Find the active season, or the first season
+        const activeSeason = seasons.find(s => s.status === 'active') || seasons[0];
+        if (!activeSeason) return;
 
-      const seasons = JSON.parse(seasonsData);
-      const allRounds = JSON.parse(roundsData);
+        const seasonRounds = await seasonApi.getRounds(activeSeason.id);
+        if (!seasonRounds || seasonRounds.length === 0) return;
 
-      // Find the active season, or the first season
-      const activeSeason = seasons.find(s => s.status === 'active') || seasons[0];
-      if (!activeSeason) return;
+        // Sort by round number
+        seasonRounds.sort((a, b) => {
+          const numA = parseInt(a.id.replace('R', ''));
+          const numB = parseInt(b.id.replace('R', ''));
+          return numA - numB;
+        });
 
-      const seasonRounds = allRounds.filter(r => r.seasonId === activeSeason.id);
-      if (seasonRounds.length === 0) return;
+        // Map round data to stage format
+        const dynamicStages = seasonRounds.map(round => {
+          const mappedStatus = round.status === 'active' ? 'current' : round.status;
+          return {
+            round: round.number,
+            title: round.title,
+            description: round.description || '',
+            status: mappedStatus,
+            price: displayPrice({ ...round, status: mappedStatus }),
+            isFree: round.price === 0,
+          };
+        });
 
-      // Sort by round number
-      seasonRounds.sort((a, b) => {
-        const numA = parseInt(a.id.replace('R', ''));
-        const numB = parseInt(b.id.replace('R', ''));
-        return numA - numB;
-      });
-
-      // Map round data to stage format
-      const dynamicStages = seasonRounds.map(round => {
-        const mappedStatus = round.status === 'active' ? 'current' : round.status;
-        return {
-          round: round.number,
-          title: round.title,
-          description: round.description || '',
-          status: mappedStatus,
-          price: displayPrice({ ...round, status: mappedStatus }),
-          isFree: round.price === 0,
-        };
-      });
-
-      setStages(dynamicStages);
-    } catch {
-      // Fall back to default stages on error
-    }
+        setStages(dynamicStages);
+      } catch {
+        // Fall back to default stages on error
+      }
+    };
+    loadStages();
   }, []);
 
   return (

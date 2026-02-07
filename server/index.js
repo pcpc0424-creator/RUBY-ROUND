@@ -1,10 +1,29 @@
 const express = require('express');
 const cors = require('cors');
 const crypto = require('crypto');
-require('dotenv').config();
+require('dotenv').config({ path: require('path').join(__dirname, '../.env') });
+
+// Database connection
+const db = require('./config/database');
+const { initializeDefaultAdmins } = require('./services/adminService');
+
+// Routes
+const authRoutes = require('./routes/auth');
+const userRoutes = require('./routes/users');
+const exchangeRoutes = require('./routes/exchange');
+const seasonRoutes = require('./routes/seasons');
+const publicRoutes = require('./routes/public');
+const adminApplicationRoutes = require('./routes/admin/applications');
+const adminUserRoutes = require('./routes/admin/users');
+const adminSeasonRoutes = require('./routes/admin/seasons');
+const adminVerificationRoutes = require('./routes/admin/verification');
+const adminSystemRoutes = require('./routes/admin/system');
+
+// Middleware
+const { notFound, errorHandler } = require('./middleware/errorHandler');
 
 const app = express();
-const PORT = 3010;
+const PORT = process.env.PORT || 3010;
 
 // 토스페이먼츠 시크릿 키
 const TOSS_SECRET_KEY = 'live_gsk_EP59LybZ8Bp4XzPjXxzkV6GYo7pR';
@@ -31,6 +50,20 @@ const niceResultStore = new Map();   // resultToken -> { name, birthDate, gender
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// API Routes
+app.use('/api/auth', authRoutes);
+app.use('/api/users', userRoutes);
+app.use('/api/exchange', exchangeRoutes);
+app.use('/api/seasons', seasonRoutes);
+app.use('/api/public', publicRoutes);
+
+// Admin Routes
+app.use('/api/admin/applications', adminApplicationRoutes);
+app.use('/api/admin/users', adminUserRoutes);
+app.use('/api/admin/seasons', adminSeasonRoutes);
+app.use('/api/admin/verification', adminVerificationRoutes);
+app.use('/api/admin/system', adminSystemRoutes);
 
 // 결제 승인 API
 app.post('/api/payments/confirm', async (req, res) => {
@@ -703,10 +736,41 @@ app.get('/api/auth/nice/result/:token', (req, res) => {
 });
 
 // 헬스 체크
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok' });
+app.get('/api/health', async (req, res) => {
+  const dbStatus = await db.testConnection();
+  res.json({
+    status: 'ok',
+    database: dbStatus ? 'connected' : 'disconnected',
+    timestamp: new Date().toISOString()
+  });
 });
 
-app.listen(PORT, () => {
-  console.log(`Ruby Round Payment Server running on port ${PORT}`);
-});
+// Error handling middleware
+app.use(notFound);
+app.use(errorHandler);
+
+// Start server
+const startServer = async () => {
+  try {
+    // Test database connection
+    const dbConnected = await db.testConnection();
+    if (!dbConnected) {
+      console.error('Failed to connect to database');
+      process.exit(1);
+    }
+
+    // Initialize default admins
+    await initializeDefaultAdmins();
+
+    app.listen(PORT, () => {
+      console.log(`Ruby Round Server running on port ${PORT}`);
+      console.log(`Database: Connected`);
+      console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+    });
+  } catch (error) {
+    console.error('Failed to start server:', error);
+    process.exit(1);
+  }
+};
+
+startServer();

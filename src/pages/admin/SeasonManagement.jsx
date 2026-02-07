@@ -1,53 +1,34 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { STORAGE_KEYS } from '../../constants/exchangeConstants';
-
-// localStorage 헬퍼
-const getFromStorage = (key, defaultValue = []) => {
-  try {
-    const data = localStorage.getItem(key);
-    return data ? JSON.parse(data) : defaultValue;
-  } catch {
-    return defaultValue;
-  }
-};
-
-const saveToStorage = (key, data) => {
-  localStorage.setItem(key, JSON.stringify(data));
-};
+import { getSeasons, createSeason, updateSeason, getPaymentsBySeason, getRoundsBySeason } from '../../api/seasonApi';
 
 const formatAmount = (amount) => {
-  return new Intl.NumberFormat('ko-KR', { style: 'currency', currency: 'KRW' }).format(amount);
-};
-
-const generateId = (prefix) => {
-  const date = new Date();
-  const dateStr = date.toISOString().slice(0, 10).replace(/-/g, '');
-  const random = Math.random().toString(36).substring(2, 6).toUpperCase();
-  return `${prefix}-${dateStr}-${random}`;
+  return new Intl.NumberFormat('ko-KR', { style: 'currency', currency: 'KRW' }).format(amount || 0);
 };
 
 export default function SeasonManagement() {
   const navigate = useNavigate();
   const [seasons, setSeasons] = useState([]);
+  const [seasonStats, setSeasonStats] = useState({});
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [modalType, setModalType] = useState(''); // 'add' | 'edit' | 'detail'
   const [editingSeason, setEditingSeason] = useState(null);
-  const [dateFilter, setDateFilter] = useState('all'); // 'all' or specific date
+  const [dateFilter, setDateFilter] = useState('all');
   const [formData, setFormData] = useState({
     name: '',
-    title: '',
     description: '',
     startDate: '',
     endDate: '',
+    totalAmount: '',
+    roundAmount: '',
   });
 
   // Get unique dates from seasons for filter dropdown
   const availableDates = useMemo(() => {
     const dates = new Set();
     seasons.forEach(s => {
-      if (s.startDate) dates.add(s.startDate);
+      if (s.start_date) dates.add(s.start_date.split('T')[0]);
     });
     return Array.from(dates).sort((a, b) => new Date(b) - new Date(a));
   }, [seasons]);
@@ -55,18 +36,17 @@ export default function SeasonManagement() {
   // Filter seasons by selected date
   const filteredSeasons = useMemo(() => {
     if (dateFilter === 'all') return seasons;
-    return seasons.filter(s => s.startDate === dateFilter);
+    return seasons.filter(s => s.start_date && s.start_date.split('T')[0] === dateFilter);
   }, [seasons, dateFilter]);
 
   // Group seasons by date for display
   const groupedSeasons = useMemo(() => {
     const groups = {};
     filteredSeasons.forEach(season => {
-      const date = season.startDate || '날짜 미지정';
+      const date = season.start_date ? season.start_date.split('T')[0] : '날짜 미지정';
       if (!groups[date]) groups[date] = [];
       groups[date].push(season);
     });
-    // Sort by date descending
     const sortedDates = Object.keys(groups).sort((a, b) => {
       if (a === '날짜 미지정') return 1;
       if (b === '날짜 미지정') return -1;
@@ -79,27 +59,34 @@ export default function SeasonManagement() {
     loadSeasons();
   }, []);
 
-  const loadSeasons = () => {
+  const loadSeasons = async () => {
     setLoading(true);
-    const data = getFromStorage(STORAGE_KEYS.SEASONS, []);
-    setSeasons(data);
+    const result = await getSeasons();
+    if (result.success) {
+      setSeasons(result.data || []);
+      // Load stats for each season
+      const stats = {};
+      for (const season of (result.data || [])) {
+        const paymentsResult = await getPaymentsBySeason(season.id);
+        const roundsResult = await getRoundsBySeason(season.id);
+        const payments = paymentsResult.success ? (paymentsResult.data || []) : [];
+        const rounds = roundsResult.success ? (roundsResult.data || []) : [];
+        const successPayments = payments.filter(p => p.status === 'success');
+        const uniqueUsers = new Set(successPayments.map(p => p.user_email || p.userEmail));
+        stats[season.id] = {
+          participants: uniqueUsers.size,
+          totalPayments: successPayments.length,
+          totalAmount: successPayments.reduce((sum, p) => sum + (p.amount || 0), 0),
+          roundCount: rounds.length,
+        };
+      }
+      setSeasonStats(stats);
+    }
     setLoading(false);
   };
 
-  const getSeasonStats = (seasonId) => {
-    const payments = getFromStorage(STORAGE_KEYS.ROUND_PAYMENTS, []);
-    const seasonPayments = payments.filter(p => p.seasonId === seasonId && p.status === 'success');
-    const uniqueUsers = new Set(seasonPayments.map(p => p.userEmail));
-    return {
-      participants: uniqueUsers.size,
-      totalPayments: seasonPayments.length,
-      totalAmount: seasonPayments.reduce((sum, p) => sum + p.amount, 0),
-    };
-  };
-
-  const getRoundCount = (seasonId) => {
-    const rounds = getFromStorage(STORAGE_KEYS.ROUNDS, []);
-    return rounds.filter(r => r.seasonId === seasonId).length;
+  const getSeasonStat = (seasonId) => {
+    return seasonStats[seasonId] || { participants: 0, totalPayments: 0, totalAmount: 0, roundCount: 0 };
   };
 
   const handleAddSeason = () => {
@@ -108,10 +95,11 @@ export default function SeasonManagement() {
     const nextNum = seasons.length + 1;
     setFormData({
       name: `Season ${nextNum}`,
-      title: '',
       description: '',
       startDate: '',
       endDate: '',
+      totalAmount: '',
+      roundAmount: '',
     });
     setShowModal(true);
   };
@@ -121,10 +109,11 @@ export default function SeasonManagement() {
     setEditingSeason(season);
     setFormData({
       name: season.name,
-      title: season.title,
       description: season.description || '',
-      startDate: season.startDate || '',
-      endDate: season.endDate || '',
+      startDate: season.start_date ? season.start_date.split('T')[0] : '',
+      endDate: season.end_date ? season.end_date.split('T')[0] : '',
+      totalAmount: season.total_amount || '',
+      roundAmount: season.round_amount || '',
     });
     setShowModal(true);
   };
@@ -135,54 +124,45 @@ export default function SeasonManagement() {
     setShowModal(true);
   };
 
-  const handleSaveSeason = () => {
-    const allSeasons = getFromStorage(STORAGE_KEYS.SEASONS, []);
+  const handleSaveSeason = async () => {
+    const seasonData = {
+      name: formData.name,
+      description: formData.description,
+      startDate: formData.startDate,
+      endDate: formData.endDate,
+      totalAmount: formData.totalAmount ? parseInt(formData.totalAmount) : null,
+      roundAmount: formData.roundAmount ? parseInt(formData.roundAmount) : null,
+    };
 
     if (modalType === 'add') {
-      const newSeason = {
-        id: generateId('SEASON'),
-        name: formData.name,
-        title: formData.title,
-        description: formData.description,
-        startDate: formData.startDate,
-        endDate: formData.endDate,
-        status: 'active',
-        isSettled: false,
-        createdAt: new Date().toISOString(),
-      };
-      allSeasons.unshift(newSeason);
+      const result = await createSeason(seasonData);
+      if (!result.success) {
+        alert(result.error || '시즌 생성에 실패했습니다.');
+        return;
+      }
     } else {
-      const index = allSeasons.findIndex(s => s.id === editingSeason.id);
-      if (index !== -1) {
-        allSeasons[index] = {
-          ...allSeasons[index],
-          name: formData.name,
-          title: formData.title,
-          description: formData.description,
-          startDate: formData.startDate,
-          endDate: formData.endDate,
-          updatedAt: new Date().toISOString(),
-        };
+      const result = await updateSeason(editingSeason.id, seasonData);
+      if (!result.success) {
+        alert(result.error || '시즌 수정에 실패했습니다.');
+        return;
       }
     }
 
-    saveToStorage(STORAGE_KEYS.SEASONS, allSeasons);
     setShowModal(false);
     loadSeasons();
   };
 
-  const handleStatusChange = (seasonId, newStatus) => {
-    const allSeasons = getFromStorage(STORAGE_KEYS.SEASONS, []);
-    const index = allSeasons.findIndex(s => s.id === seasonId);
-    if (index !== -1) {
-      allSeasons[index].status = newStatus;
-      saveToStorage(STORAGE_KEYS.SEASONS, allSeasons);
+  const handleStatusChange = async (seasonId, newStatus) => {
+    const result = await updateSeason(seasonId, { status: newStatus });
+    if (result.success) {
       loadSeasons();
+    } else {
+      alert(result.error || '상태 변경에 실패했습니다.');
     }
   };
 
   const getStatusBadge = (season) => {
-    if (season.isSettled) {
+    if (season.is_settled) {
       return <span className="px-2 py-1 text-xs rounded-full bg-purple-500/20 text-purple-400">정산완료</span>;
     }
     const configs = {
@@ -190,7 +170,7 @@ export default function SeasonManagement() {
       ended: { label: '종료', className: 'bg-gray-500/20 text-gray-400' },
       upcoming: { label: '예정', className: 'bg-blue-500/20 text-blue-400' },
     };
-    const config = configs[season.status] || configs.active;
+    const config = configs[season.status] || configs.upcoming;
     return <span className={`px-2 py-1 text-xs rounded-full ${config.className}`}>{config.label}</span>;
   };
 
@@ -203,7 +183,6 @@ export default function SeasonManagement() {
           <p className="text-gray-400 text-sm mt-1">시즌을 생성하고 관리합니다.</p>
         </div>
         <div className="flex items-center gap-2">
-          {/* 날짜 필터 */}
           <select
             value={dateFilter}
             onChange={(e) => setDateFilter(e.target.value)}
@@ -235,19 +214,19 @@ export default function SeasonManagement() {
         <div className="bg-dark-800 border border-dark-600 rounded-xl p-4">
           <p className="text-gray-400 text-sm">진행중</p>
           <p className="text-2xl font-bold text-green-400 mt-1">
-            {seasons.filter(s => s.status === 'active' && !s.isSettled).length}개
+            {seasons.filter(s => s.status === 'active' && !s.is_settled).length}개
           </p>
         </div>
         <div className="bg-dark-800 border border-dark-600 rounded-xl p-4">
           <p className="text-gray-400 text-sm">정산 완료</p>
           <p className="text-2xl font-bold text-purple-400 mt-1">
-            {seasons.filter(s => s.isSettled).length}개
+            {seasons.filter(s => s.is_settled).length}개
           </p>
         </div>
         <div className="bg-dark-800 border border-dark-600 rounded-xl p-4">
           <p className="text-gray-400 text-sm">총 매출</p>
           <p className="text-2xl font-bold text-ruby-400 mt-1">
-            {formatAmount(seasons.reduce((sum, s) => sum + getSeasonStats(s.id).totalAmount, 0))}
+            {formatAmount(seasons.reduce((sum, s) => sum + getSeasonStat(s.id).totalAmount, 0))}
           </p>
         </div>
       </div>
@@ -276,7 +255,6 @@ export default function SeasonManagement() {
         <div className="space-y-6">
           {groupedSeasons.map((group) => (
             <div key={group.date} className="space-y-4">
-              {/* 날짜 헤더 (필터가 전체일 때만 표시) */}
               {dateFilter === 'all' && (
                 <div className="flex items-center gap-3">
                   <div className="h-px flex-1 bg-dark-600" />
@@ -288,8 +266,7 @@ export default function SeasonManagement() {
               )}
 
               {group.seasons.map((season) => {
-                const stats = getSeasonStats(season.id);
-                const roundCount = getRoundCount(season.id);
+                const stats = getSeasonStat(season.id);
                 return (
                   <div
                     key={season.id}
@@ -307,7 +284,7 @@ export default function SeasonManagement() {
                             <h3 className="text-lg font-bold text-white">{season.name}</h3>
                             {getStatusBadge(season)}
                           </div>
-                          <p className="text-gray-400 text-sm">{season.title}</p>
+                          <p className="text-gray-400 text-sm">{season.description || '설명 없음'}</p>
                         </div>
                       </div>
                       <div className="flex items-center gap-2 flex-wrap">
@@ -333,7 +310,7 @@ export default function SeasonManagement() {
                         >
                           수정
                         </button>
-                        {!season.isSettled && (
+                        {!season.is_settled && (
                           <select
                             value={season.status}
                             onChange={(e) => handleStatusChange(season.id, e.target.value)}
@@ -349,7 +326,7 @@ export default function SeasonManagement() {
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                       <div>
                         <p className="text-gray-500 text-xs">라운드</p>
-                        <p className="text-white font-medium">{roundCount}개</p>
+                        <p className="text-white font-medium">{stats.roundCount}개</p>
                       </div>
                       <div>
                         <p className="text-gray-500 text-xs">참여자</p>
@@ -364,11 +341,21 @@ export default function SeasonManagement() {
                         <p className="text-ruby-400 font-medium">{formatAmount(stats.totalAmount)}</p>
                       </div>
                     </div>
-                    {season.startDate && season.endDate && (
+                    {season.start_date && season.end_date && (
                       <div className="mt-4 pt-4 border-t border-dark-600">
                         <p className="text-gray-500 text-sm">
-                          기간: {season.startDate} ~ {season.endDate}
+                          기간: {season.start_date.split('T')[0]} ~ {season.end_date.split('T')[0]}
                         </p>
+                      </div>
+                    )}
+                    {(season.total_amount || season.round_amount) && (
+                      <div className="mt-2 flex gap-4 text-sm">
+                        {season.total_amount && (
+                          <span className="text-gray-400">총액: {formatAmount(season.total_amount)}</span>
+                        )}
+                        {season.round_amount && (
+                          <span className="text-gray-400">회차당: {formatAmount(season.round_amount)}</span>
+                        )}
                       </div>
                     )}
                   </div>
@@ -408,10 +395,6 @@ export default function SeasonManagement() {
                     <span className="text-white">{editingSeason.name}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-400">제목</span>
-                    <span className="text-white">{editingSeason.title}</span>
-                  </div>
-                  <div className="flex justify-between">
                     <span className="text-gray-400">상태</span>
                     {getStatusBadge(editingSeason)}
                   </div>
@@ -421,29 +404,24 @@ export default function SeasonManagement() {
                       <p className="text-white text-sm">{editingSeason.description}</p>
                     </div>
                   )}
-                  {editingSeason.settlementInfo && (
+                  {editingSeason.total_amount && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">총액</span>
+                      <span className="text-white">{formatAmount(editingSeason.total_amount)}</span>
+                    </div>
+                  )}
+                  {editingSeason.round_amount && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">회차당 금액</span>
+                      <span className="text-white">{formatAmount(editingSeason.round_amount)}</span>
+                    </div>
+                  )}
+                  {editingSeason.is_settled && (
                     <div className="bg-purple-900/20 border border-purple-900/50 rounded-lg p-4 mt-4">
-                      <h4 className="text-purple-400 font-medium mb-2">정산 정보</h4>
-                      <div className="space-y-2 text-sm">
-                        <div className="flex justify-between">
-                          <span className="text-gray-400">정산 유형</span>
-                          <span className="text-white">
-                            {editingSeason.settlementInfo.settlementType === 'no_winner' ? '당첨자 없음' : '당첨자 있음'}
-                          </span>
-                        </div>
-                        {editingSeason.settlementInfo.winningRoundId && (
-                          <div className="flex justify-between">
-                            <span className="text-gray-400">당첨 라운드</span>
-                            <span className="text-white">{editingSeason.settlementInfo.winningRoundId}</span>
-                          </div>
-                        )}
-                        <div className="flex justify-between">
-                          <span className="text-gray-400">정산 일시</span>
-                          <span className="text-white">
-                            {new Date(editingSeason.settlementInfo.settledAt).toLocaleString('ko-KR')}
-                          </span>
-                        </div>
-                      </div>
+                      <h4 className="text-purple-400 font-medium mb-2">정산 완료</h4>
+                      <p className="text-gray-400 text-sm">
+                        정산일: {editingSeason.settled_at ? new Date(editingSeason.settled_at).toLocaleString('ko-KR') : '-'}
+                      </p>
                     </div>
                   )}
                   <button
@@ -465,16 +443,6 @@ export default function SeasonManagement() {
                       className="w-full px-4 py-3 bg-dark-700 border border-dark-600 rounded-lg text-white focus:border-ruby-500 focus:outline-none"
                     />
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">제목</label>
-                    <input
-                      type="text"
-                      value={formData.title}
-                      onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                      placeholder="예: 루비의 시작"
-                      className="w-full px-4 py-3 bg-dark-700 border border-dark-600 rounded-lg text-white focus:border-ruby-500 focus:outline-none"
-                    />
-                  </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-300 mb-2">시작일</label>
@@ -491,6 +459,28 @@ export default function SeasonManagement() {
                         type="date"
                         value={formData.endDate}
                         onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
+                        className="w-full px-4 py-3 bg-dark-700 border border-dark-600 rounded-lg text-white focus:border-ruby-500 focus:outline-none"
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-2">총액 (원)</label>
+                      <input
+                        type="number"
+                        value={formData.totalAmount}
+                        onChange={(e) => setFormData({ ...formData, totalAmount: e.target.value })}
+                        placeholder="예: 10000000"
+                        className="w-full px-4 py-3 bg-dark-700 border border-dark-600 rounded-lg text-white focus:border-ruby-500 focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-2">회차당 금액 (원)</label>
+                      <input
+                        type="number"
+                        value={formData.roundAmount}
+                        onChange={(e) => setFormData({ ...formData, roundAmount: e.target.value })}
+                        placeholder="예: 50000"
                         className="w-full px-4 py-3 bg-dark-700 border border-dark-600 rounded-lg text-white focus:border-ruby-500 focus:outline-none"
                       />
                     </div>
