@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { seasonApi } from '../api/apiClient';
 
 // 토스페이먼츠 클라이언트 키
 const TOSS_CLIENT_KEY = 'live_gck_E92LAa5PVbPzPdypLX9B87YmpXyJ';
@@ -7,14 +8,45 @@ const TOSS_CLIENT_KEY = 'live_gck_E92LAa5PVbPzPdypLX9B87YmpXyJ';
 export default function Participate() {
   const [selectedRound, setSelectedRound] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [rounds, setRounds] = useState([]);
+  const [season, setSeason] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  const rounds = [
-    { id: 'R1', name: 'Round 1', price: 0, status: 'completed', description: '무료 체험 라운드' },
-    { id: 'R2', name: 'Round 2', price: 500000, status: 'active', description: '탐사 라운드' },
-    { id: 'R3', name: 'Round 3', price: 1000000, status: 'upcoming', description: '발굴 라운드' },
-    { id: 'R4', name: 'Round 4', price: 1800000, status: 'upcoming', description: 'Deep Cargo' },
-    { id: 'R5', name: 'Round 5', price: 2500000, status: 'upcoming', description: 'Core Mining' },
-  ];
+  useEffect(() => {
+    const loadData = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const seasons = await seasonApi.getSeasons();
+        if (!seasons || seasons.length === 0) {
+          setError('등록된 시즌이 없습니다.');
+          setLoading(false);
+          return;
+        }
+
+        const activeSeason = seasons.find(s => s.status === 'active') || seasons[0];
+        setSeason(activeSeason);
+
+        if (activeSeason) {
+          const seasonRounds = await seasonApi.getRounds(activeSeason.id);
+          if (seasonRounds && seasonRounds.length > 0) {
+            // Sort by round number
+            seasonRounds.sort((a, b) => (a.round_number || 0) - (b.round_number || 0));
+            setRounds(seasonRounds);
+          } else {
+            setError('등록된 라운드가 없습니다.');
+          }
+        }
+      } catch (err) {
+        console.error('데이터 로드 실패:', err);
+        setError('데이터를 불러오는데 실패했습니다.');
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadData();
+  }, []);
 
   const handlePayment = async () => {
     const round = rounds.find(r => r.id === selectedRound);
@@ -31,7 +63,7 @@ export default function Participate() {
       await tossPayments.requestPayment('카드', {
         amount: round.price,
         orderId: orderId,
-        orderName: `${round.name} - ${round.description} 참여비`,
+        orderName: `${round.number} - ${round.title} 참여비`,
         customerName: userName,
         customerEmail: userEmail,
         successUrl: `${window.location.origin}/payment/success`,
@@ -58,7 +90,7 @@ export default function Participate() {
       case 'upcoming':
         return 'bg-dark-700 text-gray-500 border-dark-600';
       default:
-        return '';
+        return 'bg-dark-700 text-gray-500 border-dark-600';
     }
   };
 
@@ -71,9 +103,36 @@ export default function Participate() {
       case 'upcoming':
         return '예정';
       default:
-        return '';
+        return '예정';
     }
   };
+
+  // 로딩 상태
+  if (loading) {
+    return (
+      <div className="py-20 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-2 border-ruby-500 border-t-transparent mx-auto mb-4"></div>
+          <p className="text-gray-400">데이터를 불러오는 중...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // 에러 상태
+  if (error) {
+    return (
+      <div className="py-20 text-center">
+        <p className="text-gray-400 mb-4">{error}</p>
+        <button
+          onClick={() => window.location.reload()}
+          className="px-4 py-2 bg-ruby-600 hover:bg-ruby-700 text-white rounded-lg transition-colors"
+        >
+          다시 시도
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="py-12 sm:py-20 relative overflow-hidden">
@@ -97,20 +156,26 @@ export default function Participate() {
         </div>
 
         {/* Current Season Info */}
-        <div className="card p-4 sm:p-6 mb-6 sm:mb-8 hover-glow animate-fade-in-up opacity-0" style={{ animationDelay: '0.3s', animationFillMode: 'forwards' }}>
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-3 h-3 bg-ruby-500 rounded-full animate-pulse" />
-            <h2 className="text-lg sm:text-xl font-bold">Season 1 진행중</h2>
+        {season && (
+          <div className="card p-4 sm:p-6 mb-6 sm:mb-8 hover-glow animate-fade-in-up opacity-0" style={{ animationDelay: '0.3s', animationFillMode: 'forwards' }}>
+            <div className="flex items-center gap-3 mb-4">
+              <div className={`w-3 h-3 rounded-full ${season.status === 'active' ? 'bg-ruby-500 animate-pulse' : 'bg-gray-500'}`} />
+              <h2 className="text-lg sm:text-xl font-bold">{season.name} {season.status === 'active' ? '진행중' : ''}</h2>
+            </div>
+            {season.description && (
+              <p className="text-gray-400 text-sm sm:text-base mb-4">{season.description}</p>
+            )}
+            <div className="flex items-center gap-4 text-sm text-gray-500">
+              <span>총 {rounds.length} 라운드</span>
+              {season.end_date && (
+                <>
+                  <span>|</span>
+                  <span>마감: {new Date(season.end_date).toLocaleDateString('ko-KR')}</span>
+                </>
+              )}
+            </div>
           </div>
-          <p className="text-gray-400 text-sm sm:text-base mb-4">
-            현재 Round 2가 진행 중입니다. 참여하여 루비 보석을 획득할 기회를 잡으세요!
-          </p>
-          <div className="flex items-center gap-4 text-sm text-gray-500">
-            <span>총 5 라운드</span>
-            <span>|</span>
-            <span>마감: 2026년 3월 31일</span>
-          </div>
-        </div>
+        )}
 
         {/* Round Selection */}
         <div className="space-y-3 sm:space-y-4 mb-6 sm:mb-8">
@@ -131,11 +196,13 @@ export default function Participate() {
                   <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-lg flex items-center justify-center font-bold ${
                     round.status === 'active' ? 'bg-ruby-600 text-white' : 'bg-dark-700 text-gray-500'
                   }`}>
-                    {round.id.replace('R', '')}
+                    {round.round_number}
                   </div>
                   <div>
-                    <h3 className="font-bold text-sm sm:text-base">{round.name}</h3>
-                    <p className="text-gray-500 text-xs sm:text-sm">{round.description}</p>
+                    <h3 className="font-bold text-sm sm:text-base">{round.title || round.name}</h3>
+                    {round.description && (
+                      <p className="text-gray-500 text-xs sm:text-sm">{round.description}</p>
+                    )}
                   </div>
                 </div>
                 <div className="flex items-center gap-3 sm:gap-4">
@@ -155,13 +222,14 @@ export default function Participate() {
         <div className="card bg-gradient-to-r from-ruby-950/50 to-dark-800 border-ruby-900/50 p-4 sm:p-6 animate-fade-in-up opacity-0" style={{ animationDelay: '0.9s', animationFillMode: 'forwards' }}>
           {selectedRound ? (() => {
             const round = rounds.find(r => r.id === selectedRound);
+            if (!round) return null;
             return (
               <>
                 <h3 className="text-lg sm:text-xl font-bold mb-4">결제 정보</h3>
                 <div className="space-y-3 mb-6">
                   <div className="flex justify-between text-sm sm:text-base">
                     <span className="text-gray-400">선택 라운드</span>
-                    <span>{round.name} - {round.description}</span>
+                    <span>{round.number} - {round.title || round.name}</span>
                   </div>
                   <div className="flex justify-between text-sm sm:text-base">
                     <span className="text-gray-400">참여비</span>

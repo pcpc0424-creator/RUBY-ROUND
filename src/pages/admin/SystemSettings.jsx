@@ -45,9 +45,13 @@ export default function SystemSettings() {
 
   const loadSettings = async () => {
     setLoading(true);
-    const result = getSystemSettings();
-    if (result.success && result.data) {
-      setSettings((prev) => ({ ...prev, ...result.data }));
+    try {
+      const result = await getSystemSettings();
+      if (result.success && result.data) {
+        setSettings((prev) => ({ ...prev, ...result.data }));
+      }
+    } catch (error) {
+      console.error('설정 로드 오류:', error);
     }
     setLoading(false);
   };

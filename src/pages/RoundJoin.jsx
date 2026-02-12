@@ -2,153 +2,49 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { seasonApi } from '../api/apiClient';
 
-const roundsData = [
-  {
-    id: 'R1',
-    number: 'Round 1',
-    title: '체험 라운드',
-    price: 0,
-    status: 'completed',
-    participants: 1250,
-    seasonId: 'SEASON-1',
-    description: '무료 체험 라운드 - 실물 보상은 제공되지 않으며 시즌 누적 정보로만 반영됩니다.',
-    details: '시즌의 세계관과 보석 채굴 구조를 체험해보세요. 무료로 참여할 수 있으며, 시즌 참여 경험을 쌓을 수 있습니다.',
-    benefits: [
-      '시즌 시스템 무료 체험',
-      '채굴 메커니즘 이해',
-      '시즌 참여 이력 누적',
-    ],
-  },
-  {
-    id: 'R2',
-    number: 'Round 2',
-    title: '탐사 라운드',
-    price: 500000,
-    status: 'completed',
-    participants: 890,
-    seasonId: 'SEASON-1',
-    description: '참여비는 루비 보석 악세사리 구매를 위한 예약금입니다.',
-    details: '보석 탐사의 첫 단계입니다. 기본 채굴이 시작되며, 초급 원석에 접근할 수 있습니다.',
-    benefits: [
-      '초급 루비 원석 접근권',
-      '기본 채굴 보너스 적용',
-      '시즌 보상 1단계 자격',
-    ],
-  },
-  {
-    id: 'R3',
-    number: 'Round 3',
-    title: '발굴 라운드',
-    price: 1000000,
-    status: 'active',
-    participants: 567,
-    seasonId: 'SEASON-1',
-    description: '참여비는 루비 보석 악세사리 구매를 위한 예약금입니다.',
-    details: '본격적인 보석 발굴 단계입니다. 중급 원석에 접근하며, 보석의 품질이 향상됩니다.',
-    benefits: [
-      '중급 루비 원석 접근권',
-      '품질 향상 보너스 적용',
-      '시즌 보상 2단계 자격',
-      '누적 참여자 특별 혜택',
-    ],
-  },
-  {
-    id: 'R4',
-    number: 'Round 4',
-    title: 'Deep Cargo',
-    price: 1800000,
-    status: 'upcoming',
-    participants: 0,
-    seasonId: 'SEASON-1',
-    description: '참여비는 루비 보석 악세사리 구매를 위한 예약금입니다.',
-    details: '더 깊은 화물 레이어를 개봉합니다. 보석의 크기와 밀도가 이전 라운드보다 증가합니다.',
-    benefits: [
-      '고급 원석 레이어 접근',
-      '크기/밀도 증가 보너스',
-      '시즌 보상 3단계 자격',
-    ],
-  },
-  {
-    id: 'R5',
-    number: 'Round 5',
-    title: 'Core Mining',
-    price: 2500000,
-    status: 'upcoming',
-    participants: 0,
-    seasonId: 'SEASON-1',
-    description: '참여비는 루비 보석 악세사리 구매를 위한 예약금입니다.',
-    details: '핵심 채굴 구역에 진입합니다. 희귀 원석의 발견 확률이 크게 상승합니다.',
-    benefits: [
-      '희귀 원석 발견 확률 상승',
-      '핵심 채굴 구역 진입권',
-      '시즌 보상 4단계 자격',
-    ],
-  },
-  {
-    id: 'R6',
-    number: 'Round 6',
-    title: 'Ruby Vein',
-    price: 3500000,
-    status: 'upcoming',
-    participants: 0,
-    seasonId: 'SEASON-1',
-    description: '참여비는 루비 보석 악세사리 구매를 위한 예약금입니다.',
-    details: '루비 광맥에 접근합니다. 고급 루비 원석을 채굴할 수 있는 기회가 열립니다.',
-    benefits: [
-      '루비 광맥 접근권',
-      '고급 루비 원석 채굴',
-      '시즌 보상 5단계 자격',
-    ],
-  },
-  {
-    id: 'R7',
-    number: 'Round 7',
-    title: 'Final Extraction',
-    price: 5000000,
-    status: 'upcoming',
-    participants: 0,
-    seasonId: 'SEASON-1',
-    description: '참여비는 루비 보석 악세사리 구매를 위한 예약금입니다.',
-    details: '시즌의 마지막 라운드입니다. 최고급 보석의 최종 추출이 이루어집니다.',
-    benefits: [
-      '최고급 보석 추출 기회',
-      '시즌 최종 보상 자격',
-      '다음 시즌 우선 참여권',
-    ],
-  },
-];
-
 export default function RoundJoin() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [round, setRound] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [agreedToRefund, setAgreedToRefund] = useState(false);
 
   useEffect(() => {
     const loadRound = async () => {
+      setLoading(true);
+      setError(null);
       try {
         const seasons = await seasonApi.getSeasons();
-        if (seasons && seasons.length > 0) {
-          const activeSeason = seasons.find(s => s.status === 'active') || seasons[0];
+        if (!seasons || seasons.length === 0) {
+          setError('등록된 시즌이 없습니다.');
+          setLoading(false);
+          return;
+        }
 
-          if (activeSeason) {
-            const seasonRounds = await seasonApi.getRounds(activeSeason.id);
-            const foundRound = seasonRounds?.find(r => r.id === id || r.id === `R${id}`);
-            if (foundRound) {
-              setRound(foundRound);
-              return;
-            }
+        const activeSeason = seasons.find(s => s.status === 'active') || seasons[0];
+
+        if (activeSeason) {
+          const seasonRounds = await seasonApi.getRounds(activeSeason.id);
+          // ID로 찾기 (DB ID 또는 round_number로 매칭)
+          const foundRound = seasonRounds?.find(r =>
+            r.id === id ||
+            r.id === `ROUND-${id}` ||
+            String(r.round_number) === id
+          );
+
+          if (foundRound) {
+            setRound(foundRound);
+          } else {
+            setError('라운드를 찾을 수 없습니다.');
           }
         }
-      } catch {
-        // Fall through to default
-      }
-
-      // Fallback to hardcoded data
-      const foundRound = roundsData.find(r => r.id === id || r.id === `R${id}`);
-      if (foundRound) {
-        setRound(foundRound);
+      } catch (err) {
+        console.error('라운드 로드 실패:', err);
+        setError('라운드 정보를 불러오는데 실패했습니다.');
+      } finally {
+        setLoading(false);
       }
     };
     loadRound();
@@ -161,14 +57,27 @@ export default function RoundJoin() {
     }
 
     // 결제 페이지로 이동
-    navigate(`/rounds/${id}/payment`);
+    navigate(`/rounds/${round.id}/payment`);
   };
 
-  if (!round) {
+  // 로딩 상태
+  if (loading) {
+    return (
+      <div className="py-20 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-2 border-ruby-500 border-t-transparent mx-auto mb-4"></div>
+          <p className="text-gray-400">라운드 정보를 불러오는 중...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // 에러 상태
+  if (error || !round) {
     return (
       <div className="py-20 text-center">
-        <p className="text-gray-400">라운드 정보를 찾을 수 없습니다.</p>
-        <Link to="/rounds" className="text-ruby-400 hover:underline mt-4 inline-block">
+        <p className="text-gray-400 mb-4">{error || '라운드 정보를 찾을 수 없습니다.'}</p>
+        <Link to="/rounds" className="text-ruby-400 hover:underline">
           라운드 목록으로 돌아가기
         </Link>
       </div>
@@ -181,7 +90,7 @@ export default function RoundJoin() {
     upcoming: { label: '오픈 예정', color: 'bg-dark-700 text-gray-500', canJoin: false },
   };
 
-  const status = statusConfig[round.status];
+  const status = statusConfig[round.status] || statusConfig.upcoming;
 
   return (
     <div className="py-12 sm:py-20 relative overflow-hidden">
@@ -217,9 +126,11 @@ export default function RoundJoin() {
           <h1 className="text-2xl sm:text-4xl font-bold mb-4">
             {round.title} <span className="text-shimmer">참여하기</span>
           </h1>
-          <p className="text-gray-400 text-sm sm:text-base">
-            {round.details}
-          </p>
+          {round.description && (
+            <p className="text-gray-400 text-sm sm:text-base">
+              {round.description}
+            </p>
+          )}
         </div>
 
         <div className="grid lg:grid-cols-5 gap-6 sm:gap-8">
@@ -242,10 +153,6 @@ export default function RoundJoin() {
                   </p>
                 </div>
 
-                <p className="text-gray-300 text-sm sm:text-base">
-                  {round.description}
-                </p>
-
                 {round.participants > 0 && (
                   <div className="flex items-center gap-2 text-gray-400 text-sm">
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -257,29 +164,8 @@ export default function RoundJoin() {
               </div>
             </div>
 
-            {/* Benefits Card */}
-            <div className="card p-5 sm:p-8 hover-glow animate-fade-in-up" style={{ animationDelay: '0.4s' }}>
-              <h2 className="text-lg sm:text-xl font-bold mb-4 flex items-center gap-2">
-                <div className="w-2 h-2 bg-ruby-500 rotate-45" />
-                참여 혜택
-              </h2>
-
-              <ul className="space-y-3">
-                {round.benefits.map((benefit, index) => (
-                  <li key={index} className="flex items-start gap-3">
-                    <div className="w-5 h-5 rounded-full bg-ruby-600/20 flex items-center justify-center flex-shrink-0 mt-0.5">
-                      <svg className="w-3 h-3 text-ruby-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                      </svg>
-                    </div>
-                    <span className="text-gray-300 text-sm sm:text-base">{benefit}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
             {/* Notice Card */}
-            <div className="card bg-dark-800/50 border-yellow-900/30 p-5 sm:p-8 animate-fade-in-up" style={{ animationDelay: '0.5s' }}>
+            <div className="card bg-dark-800/50 border-yellow-900/30 p-5 sm:p-8 animate-fade-in-up" style={{ animationDelay: '0.4s' }}>
               <h2 className="text-lg sm:text-xl font-bold mb-4 flex items-center gap-2 text-yellow-500">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
@@ -310,7 +196,7 @@ export default function RoundJoin() {
 
           {/* Right: Payment Summary */}
           <div className="lg:col-span-2">
-            <div className="card bg-gradient-to-b from-ruby-950/30 to-dark-800 border-ruby-900/50 p-5 sm:p-6 sticky top-32 animate-fade-in-up" style={{ animationDelay: '0.6s' }}>
+            <div className="card bg-gradient-to-b from-ruby-950/30 to-dark-800 border-ruby-900/50 p-5 sm:p-6 sticky top-32 animate-fade-in-up" style={{ animationDelay: '0.5s' }}>
               <h2 className="text-lg font-bold mb-4">참여 신청</h2>
 
               {/* Price Summary */}

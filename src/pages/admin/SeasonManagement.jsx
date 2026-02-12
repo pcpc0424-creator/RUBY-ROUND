@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getSeasons, createSeason, updateSeason, getPaymentsBySeason, getRoundsBySeason } from '../../api/seasonApi';
+import { getSeasons, createSeason, updateSeason, deleteSeason, getPaymentsBySeason, getRoundsBySeason } from '../../api/seasonApi';
 
 const formatAmount = (amount) => {
   return new Intl.NumberFormat('ko-KR', { style: 'currency', currency: 'KRW' }).format(amount || 0);
@@ -161,6 +161,25 @@ export default function SeasonManagement() {
     }
   };
 
+  const handleDeleteSeason = async (season) => {
+    const stats = seasonStats[season.id];
+    if (stats?.roundCount > 0) {
+      alert('라운드가 있는 시즌은 삭제할 수 없습니다. 먼저 라운드를 삭제해주세요.');
+      return;
+    }
+
+    if (!confirm(`"${season.name}" 시즌을 삭제하시겠습니까?`)) {
+      return;
+    }
+
+    const result = await deleteSeason(season.id);
+    if (result.success) {
+      loadSeasons();
+    } else {
+      alert(result.error || '시즌 삭제에 실패했습니다.');
+    }
+  };
+
   const getStatusBadge = (season) => {
     if (season.is_settled) {
       return <span className="px-2 py-1 text-xs rounded-full bg-purple-500/20 text-purple-400">정산완료</span>;
@@ -311,15 +330,23 @@ export default function SeasonManagement() {
                           수정
                         </button>
                         {!season.is_settled && (
-                          <select
-                            value={season.status}
-                            onChange={(e) => handleStatusChange(season.id, e.target.value)}
-                            className="px-2 py-2 bg-dark-700 border border-dark-600 text-gray-300 text-sm rounded-lg"
-                          >
-                            <option value="upcoming">예정</option>
-                            <option value="active">진행중</option>
-                            <option value="ended">종료</option>
-                          </select>
+                          <>
+                            <select
+                              value={season.status}
+                              onChange={(e) => handleStatusChange(season.id, e.target.value)}
+                              className="px-2 py-2 bg-dark-700 border border-dark-600 text-gray-300 text-sm rounded-lg"
+                            >
+                              <option value="upcoming">예정</option>
+                              <option value="active">진행중</option>
+                              <option value="ended">종료</option>
+                            </select>
+                            <button
+                              onClick={() => handleDeleteSeason(season)}
+                              className="px-3 py-2 bg-red-600/20 hover:bg-red-600/40 text-red-400 rounded-lg text-sm"
+                            >
+                              삭제
+                            </button>
+                          </>
                         )}
                       </div>
                     </div>

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getSeasons, getRoundsBySeason, createRound, updateRound, getPaymentsBySeason } from '../../api/seasonApi';
+import { getSeasons, getRoundsBySeason, createRound, updateRound, deleteRound, getPaymentsBySeason } from '../../api/seasonApi';
 import { formatAmount } from '../../utils/localStorage';
 
 export default function RoundManagement() {
@@ -76,6 +76,25 @@ export default function RoundManagement() {
       loadRounds();
     } else {
       alert(result.error || '상태 변경에 실패했습니다.');
+    }
+  };
+
+  const handleDeleteRound = async (round) => {
+    const stats = getPaymentStats(round.id);
+    if (stats.count > 0) {
+      alert('결제 내역이 있는 라운드는 삭제할 수 없습니다.');
+      return;
+    }
+
+    if (!confirm(`"${round.name}" 라운드를 삭제하시겠습니까?`)) {
+      return;
+    }
+
+    const result = await deleteRound(round.id);
+    if (result.success) {
+      loadRounds();
+    } else {
+      alert(result.error || '라운드 삭제에 실패했습니다.');
     }
   };
 
@@ -249,6 +268,12 @@ export default function RoundManagement() {
                       <option value="active">진행중</option>
                       <option value="completed">종료</option>
                     </select>
+                    <button
+                      onClick={() => handleDeleteRound(round)}
+                      className="py-2 px-3 bg-red-600/20 hover:bg-red-600/40 text-red-400 rounded-lg text-sm"
+                    >
+                      삭제
+                    </button>
                   </div>
                 </div>
               );
@@ -316,6 +341,12 @@ export default function RoundManagement() {
                               <option value="active">진행중</option>
                               <option value="completed">종료</option>
                             </select>
+                            <button
+                              onClick={() => handleDeleteRound(round)}
+                              className="px-3 py-1 bg-red-600/20 hover:bg-red-600/40 text-red-400 text-sm rounded transition-colors"
+                            >
+                              삭제
+                            </button>
                           </div>
                         </td>
                       </tr>

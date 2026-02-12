@@ -45,6 +45,16 @@ export const updateSeason = async (seasonId, updateData) => {
   }
 };
 
+// 시즌 삭제 (관리자)
+export const deleteSeason = async (seasonId) => {
+  try {
+    await adminApi.seasons.delete(seasonId);
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+};
+
 // ========== 라운드 관리 API ==========
 
 // 시즌별 라운드 목록 조회
@@ -72,6 +82,16 @@ export const updateRound = async (roundId, updateData) => {
   try {
     const data = await adminApi.seasons.updateRound(roundId, updateData);
     return { success: true, data };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+};
+
+// 라운드 삭제 (관리자)
+export const deleteRound = async (roundId) => {
+  try {
+    await adminApi.seasons.deleteRound(roundId);
+    return { success: true };
   } catch (error) {
     return { success: false, error: error.message };
   }

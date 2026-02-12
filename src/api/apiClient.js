@@ -52,6 +52,7 @@ const apiFetch = async (endpoint, options = {}, useAdminToken = false) => {
       ...options,
       headers,
       body: options.body ? JSON.stringify(options.body) : undefined,
+      cache: 'no-store',  // 브라우저 캐싱 방지
     });
 
     const data = await response.json();
@@ -506,6 +507,13 @@ export const adminApi = {
       return result.data;
     },
 
+    delete: async (id) => {
+      const result = await apiFetch(`/admin/seasons/${id}`, {
+        method: 'DELETE',
+      }, true);
+      return result;
+    },
+
     getRounds: async (seasonId) => {
       const result = await apiFetch(`/admin/seasons/${seasonId}/rounds`, {}, true);
       return result.data;
@@ -525,6 +533,13 @@ export const adminApi = {
         body: updateData,
       }, true);
       return result.data;
+    },
+
+    deleteRound: async (roundId) => {
+      const result = await apiFetch(`/admin/seasons/rounds/${roundId}`, {
+        method: 'DELETE',
+      }, true);
+      return result;
     },
 
     getPayments: async (seasonId) => {

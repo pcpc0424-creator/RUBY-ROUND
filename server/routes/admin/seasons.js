@@ -61,6 +61,12 @@ router.put('/:id', requirePermission('manage_seasons'), asyncHandler(async (req,
   res.json({ success: true, data: season });
 }));
 
+// Delete season
+router.delete('/:id', requirePermission('manage_seasons'), asyncHandler(async (req, res) => {
+  await seasonService.deleteSeason(req.params.id);
+  res.json({ success: true, message: '시즌이 삭제되었습니다.' });
+}));
+
 // ==================== ROUNDS ====================
 
 // Get rounds by season
@@ -108,6 +114,12 @@ router.put('/rounds/:id', requirePermission('manage_rounds'), asyncHandler(async
   });
 
   res.json({ success: true, data: round });
+}));
+
+// Delete round
+router.delete('/rounds/:id', requirePermission('manage_rounds'), asyncHandler(async (req, res) => {
+  await seasonService.deleteRound(req.params.id);
+  res.json({ success: true, message: '라운드가 삭제되었습니다.' });
 }));
 
 // ==================== PAYMENTS ====================

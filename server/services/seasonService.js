@@ -74,6 +74,32 @@ const updateSeason = async (seasonId, updateData) => {
   return await getSeasonById(seasonId);
 };
 
+// Delete season
+const deleteSeason = async (seasonId) => {
+  // Check if season has rounds
+  const rounds = await query(
+    'SELECT COUNT(*) as count FROM rounds WHERE season_id = ?',
+    [seasonId]
+  );
+
+  if (rounds[0]?.count > 0) {
+    throw { statusCode: 400, message: '라운드가 있는 시즌은 삭제할 수 없습니다. 먼저 라운드를 삭제해주세요.' };
+  }
+
+  // Check if season has payments
+  const payments = await query(
+    'SELECT COUNT(*) as count FROM round_payments WHERE season_id = ?',
+    [seasonId]
+  );
+
+  if (payments[0]?.count > 0) {
+    throw { statusCode: 400, message: '결제 내역이 있는 시즌은 삭제할 수 없습니다.' };
+  }
+
+  await query('DELETE FROM seasons WHERE id = ?', [seasonId]);
+  return true;
+};
+
 // ==================== ROUNDS ====================
 
 // Create round
@@ -135,6 +161,22 @@ const updateRound = async (roundId, updateData) => {
   await query(`UPDATE rounds SET ${updates.join(', ')} WHERE id = ?`, values);
 
   return await getRoundById(roundId);
+};
+
+// Delete round
+const deleteRound = async (roundId) => {
+  // Check if round has payments
+  const payments = await query(
+    'SELECT COUNT(*) as count FROM round_payments WHERE round_id = ?',
+    [roundId]
+  );
+
+  if (payments[0]?.count > 0) {
+    throw { statusCode: 400, message: '결제 내역이 있는 라운드는 삭제할 수 없습니다.' };
+  }
+
+  await query('DELETE FROM rounds WHERE id = ?', [roundId]);
+  return true;
 };
 
 // ==================== PAYMENTS ====================
@@ -455,11 +497,13 @@ module.exports = {
   getSeasonById,
   getSeasons,
   updateSeason,
+  deleteSeason,
   // Rounds
   createRound,
   getRoundById,
   getRoundsBySeason,
   updateRound,
+  deleteRound,
   // Payments
   createRoundPayment,
   getPaymentById,

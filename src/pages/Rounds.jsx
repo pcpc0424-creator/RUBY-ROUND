@@ -3,86 +3,6 @@ import { Link, useNavigate } from 'react-router-dom';
 import { createRoundPayment } from '../api/seasonApi';
 import { seasonApi } from '../api/apiClient';
 
-const defaultRounds = [
-  {
-    id: 'R1',
-    number: 'Round 1',
-    title: '체험 라운드',
-    price: 0,
-    status: 'completed',
-    participants: 1250,
-    seasonId: 'SEASON-1',
-    description: '무료 체험 라운드 - 실물 보상은 제공되지 않으며 시즌 누적 정보로만 반영됩니다.',
-    details: '시즌의 세계관과 보석 채굴 구조를 체험해보세요. 무료로 참여할 수 있으며, 시즌 참여 경험을 쌓을 수 있습니다.',
-  },
-  {
-    id: 'R2',
-    number: 'Round 2',
-    title: '탐사 라운드',
-    price: 500000,
-    status: 'completed',
-    participants: 890,
-    seasonId: 'SEASON-1',
-    description: '참여비는 루비 보석 악세사리 구매를 위한 예약금입니다.',
-    details: '보석 탐사의 첫 단계입니다. 기본 채굴이 시작되며, 초급 원석에 접근할 수 있습니다.',
-  },
-  {
-    id: 'R3',
-    number: 'Round 3',
-    title: '발굴 라운드',
-    price: 1000000,
-    status: 'active',
-    participants: 567,
-    seasonId: 'SEASON-1',
-    description: '참여비는 루비 보석 악세사리 구매를 위한 예약금입니다.',
-    details: '본격적인 보석 발굴 단계입니다. 중급 원석에 접근하며, 보석의 품질이 향상됩니다.',
-  },
-  {
-    id: 'R4',
-    number: 'Round 4',
-    title: 'Deep Cargo',
-    price: 1800000,
-    status: 'upcoming',
-    participants: 0,
-    seasonId: 'SEASON-1',
-    description: '참여비는 루비 보석 악세사리 구매를 위한 예약금입니다.',
-    details: '더 깊은 화물 레이어를 개봉합니다. 보석의 크기와 밀도가 이전 라운드보다 증가합니다.',
-  },
-  {
-    id: 'R5',
-    number: 'Round 5',
-    title: 'Core Mining',
-    price: 2500000,
-    status: 'upcoming',
-    seasonId: 'SEASON-1',
-    participants: 0,
-    description: '참여비는 루비 보석 악세사리 구매를 위한 예약금입니다.',
-    details: '핵심 채굴 구역에 진입합니다. 희귀 원석의 발견 확률이 크게 상승합니다.',
-  },
-  {
-    id: 'R6',
-    number: 'Round 6',
-    title: 'Ruby Vein',
-    price: 3500000,
-    status: 'upcoming',
-    participants: 0,
-    seasonId: 'SEASON-1',
-    description: '참여비는 루비 보석 악세사리 구매를 위한 예약금입니다.',
-    details: '루비 광맥에 접근합니다. 고급 루비 원석을 채굴할 수 있는 기회가 열립니다.',
-  },
-  {
-    id: 'R7',
-    number: 'Round 7',
-    title: 'Final Extraction',
-    price: 5000000,
-    status: 'upcoming',
-    participants: 0,
-    seasonId: 'SEASON-1',
-    description: '참여비는 루비 보석 악세사리 구매를 위한 예약금입니다.',
-    details: '시즌의 마지막 라운드입니다. 최고급 보석의 최종 추출이 이루어집니다.',
-  },
-];
-
 function RoundCard({ round, isSelected, onClick, index }) {
   const statusConfig = {
     completed: { label: '종료', color: 'bg-dark-600 text-gray-400' },
@@ -193,11 +113,11 @@ function RoundDetail({ round, onPayment }) {
         </p>
       </div>
 
-      <p className="text-gray-300 text-sm sm:text-base mb-4 sm:mb-6">{round.details}</p>
-
-      <div className="bg-dark-700 rounded-lg sm:rounded-xl p-3 sm:p-4 mb-4 sm:mb-6">
-        <p className="text-gray-400 text-xs sm:text-sm">{round.description}</p>
-      </div>
+      {round.description && (
+        <div className="bg-dark-700 rounded-lg sm:rounded-xl p-3 sm:p-4 mb-4 sm:mb-6">
+          <p className="text-gray-400 text-xs sm:text-sm">{round.description}</p>
+        </div>
+      )}
 
       {/* 결제 수단 표시 */}
       {round.status === 'active' && round.price > 0 && (
@@ -287,15 +207,20 @@ function RoundDetail({ round, onPayment }) {
 
 export default function Rounds() {
   const navigate = useNavigate();
-  const [rounds, setRounds] = useState(defaultRounds);
+  const [rounds, setRounds] = useState([]);
   const [selectedRound, setSelectedRound] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     const loadRounds = async () => {
+      setLoading(true);
+      setError(null);
       try {
         const seasons = await seasonApi.getSeasons();
         if (!seasons || seasons.length === 0) {
-          setSelectedRound(defaultRounds.find(r => r.status === 'active') || defaultRounds[0]);
+          setError('등록된 시즌이 없습니다.');
+          setLoading(false);
           return;
         }
 
@@ -308,22 +233,21 @@ export default function Rounds() {
           if (seasonRounds && seasonRounds.length > 0) {
             // Sort by round number
             seasonRounds.sort((a, b) => {
-              const numA = parseInt(a.id?.replace(/[^0-9]/g, '') || '0');
-              const numB = parseInt(b.id?.replace(/[^0-9]/g, '') || '0');
-              return numA - numB;
+              return (a.round_number || 0) - (b.round_number || 0);
             });
 
             setRounds(seasonRounds);
             setSelectedRound(seasonRounds.find(r => r.status === 'active') || seasonRounds[0]);
-            return;
+          } else {
+            setError('등록된 라운드가 없습니다.');
           }
         }
-      } catch {
-        // Use default rounds
+      } catch (err) {
+        console.error('라운드 로드 실패:', err);
+        setError('라운드 정보를 불러오는데 실패했습니다.');
+      } finally {
+        setLoading(false);
       }
-
-      // Fallback to default rounds
-      setSelectedRound(defaultRounds.find(r => r.status === 'active') || defaultRounds[0]);
     };
     loadRounds();
   }, []);
@@ -360,6 +284,33 @@ export default function Rounds() {
     // 결제 페이지로 이동
     navigate(`/rounds/${round.id}/join`);
   };
+
+  // 로딩 상태
+  if (loading) {
+    return (
+      <div className="py-20 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-2 border-ruby-500 border-t-transparent mx-auto mb-4"></div>
+          <p className="text-gray-400">라운드 정보를 불러오는 중...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // 에러 상태
+  if (error) {
+    return (
+      <div className="py-20 text-center">
+        <p className="text-gray-400 mb-4">{error}</p>
+        <button
+          onClick={() => window.location.reload()}
+          className="px-4 py-2 bg-ruby-600 hover:bg-ruby-700 text-white rounded-lg transition-colors"
+        >
+          다시 시도
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="py-12 sm:py-20 relative overflow-hidden">
