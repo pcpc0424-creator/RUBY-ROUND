@@ -446,7 +446,16 @@ const getUserStatistics = async () => {
     FROM exchange_balances
   `);
 
-  return { ...stats, ...balanceStats };
+  return {
+    totalUsers: parseInt(stats.total_users) || 0,
+    activeUsers: parseInt(stats.active_users) || 0,
+    adultVerifiedUsers: parseInt(stats.verified_users) || 0,
+    newUsers7d: parseInt(stats.new_users_7d) || 0,
+    newUsers30d: parseInt(stats.new_users_30d) || 0,
+    totalBalanceAll: parseInt(balanceStats.total_balance_all) || 0,
+    availableBalanceAll: parseInt(balanceStats.available_balance_all) || 0,
+    usedBalanceAll: parseInt(balanceStats.used_balance_all) || 0,
+  };
 };
 
 // Update user status (admin)

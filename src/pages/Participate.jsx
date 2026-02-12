@@ -12,6 +12,9 @@ export default function Participate() {
   const [season, setSeason] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [isLoggedIn, setIsLoggedIn] = useState(() => {
+    return localStorage.getItem('isLoggedIn') === 'true';
+  });
 
   useEffect(() => {
     const loadData = async () => {
@@ -255,10 +258,12 @@ export default function Participate() {
           })() : (
             <div className="text-center py-4">
               <p className="text-gray-400 mb-4">참여할 라운드를 선택해주세요.</p>
-              <p className="text-xs text-gray-500">
-                로그인 후 참여가 가능합니다.{' '}
-                <Link to="/login" className="text-ruby-400 hover:underline">로그인하기</Link>
-              </p>
+              {!isLoggedIn && (
+                <p className="text-xs text-gray-500">
+                  로그인 후 참여가 가능합니다.{' '}
+                  <Link to="/login" className="text-ruby-400 hover:underline">로그인하기</Link>
+                </p>
+              )}
             </div>
           )}
         </div>

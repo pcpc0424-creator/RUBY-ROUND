@@ -6,38 +6,13 @@ import ExchangeHistoryList from '../components/exchange/ExchangeHistoryList';
 import { getUserLedger, getPaymentsByUser } from '../api/seasonApi';
 import { deleteUser, changePassword, updateUser, getUserDetail, checkAdultVerification, completePassVerification } from '../api/exchangeApi';
 
-// 샘플 데이터
-const userData = {
-  name: '김루비',
-  email: 'ruby@example.com',
-  phone: '010-1234-5678',
-  joinDate: '2024.01.15',
+// 기본 사용자 데이터 (로그인 정보 없을 때 폴백용)
+const defaultUserData = {
+  name: '사용자',
+  email: '',
+  phone: '',
+  joinDate: '',
 };
-
-const participationData = [
-  { id: 1, season: 'Season 1', round: 'Round 1', date: '2026.01.10', amount: 0, status: '완료' },
-  { id: 2, season: 'Season 1', round: 'Round 2', date: '2026.01.15', amount: 50000, status: '완료' },
-  { id: 3, season: 'Season 1', round: 'Round 3', date: '-', amount: 50000, status: '예정' },
-];
-
-const paymentData = [
-  { id: 1, date: '2026.01.15', description: 'Season 1 Round 2 참여', amount: 50000, method: '카카오페이', status: '완료' },
-  { id: 2, date: '2026.01.10', description: 'Season 1 Round 1 참여', amount: 0, method: '-', status: '완료(무료)' },
-];
-
-const exchangeData = [
-  { id: 1, date: '2026.01.20', product: '루비 펜던트 목걸이', status: '배송완료', trackingNo: '1234567890' },
-];
-
-const deliveryAddresses = [
-  { id: 1, name: '집', recipient: '김루비', phone: '010-1234-5678', address: '서울특별시 강남구 테헤란로 123', isDefault: true },
-  { id: 2, name: '회사', recipient: '김루비', phone: '010-1234-5678', address: '서울특별시 서초구 서초대로 456', isDefault: false },
-];
-
-const coupons = [
-  { id: 1, name: '신규 가입 축하 쿠폰', discount: '10%', expiry: '2026.03.31', minOrder: 50000 },
-  { id: 2, name: 'Season 1 참여자 특별 할인', discount: '5,000원', expiry: '2026.02.28', minOrder: 100000 },
-];
 
 // 메뉴 구조
 const menuItems = [
@@ -642,39 +617,10 @@ function DeliveryTracking() {
   return (
     <div className="space-y-4">
       <h3 className="text-lg sm:text-xl font-bold">배송조회</h3>
-      {exchangeData.length > 0 ? (
-        <div className="space-y-3">
-          {exchangeData.map((item) => (
-            <div key={item.id} className="card p-4 sm:p-5">
-              <div className="flex items-center justify-between gap-2 mb-4">
-                <div className="min-w-0 flex-1">
-                  <p className="font-medium text-sm sm:text-base truncate">{item.product}</p>
-                  <p className="text-xs sm:text-sm text-gray-400">{item.trackingNo}</p>
-                </div>
-                <span className="px-2 py-1 text-xs rounded-full bg-green-600/20 text-green-400 flex-shrink-0">
-                  {item.status}
-                </span>
-              </div>
-              <div className="flex items-center gap-1 sm:gap-2">
-                <div className="flex-1 h-1 bg-green-500 rounded-full"></div>
-                <div className="flex-1 h-1 bg-green-500 rounded-full"></div>
-                <div className="flex-1 h-1 bg-green-500 rounded-full"></div>
-                <div className="flex-1 h-1 bg-green-500 rounded-full"></div>
-              </div>
-              <div className="flex justify-between text-[10px] sm:text-xs text-gray-500 mt-2">
-                <span>주문</span>
-                <span>준비</span>
-                <span>배송중</span>
-                <span>완료</span>
-              </div>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <div className="card p-6 text-center text-gray-400">
-          배송 중인 상품이 없습니다.
-        </div>
-      )}
+      <div className="card p-8 text-center">
+        <div className="text-gray-400 mb-2">배송 중인 상품이 없습니다.</div>
+        <p className="text-sm text-gray-500">교환 신청이 승인되면 배송 정보가 표시됩니다.</p>
+      </div>
     </div>
   );
 }
@@ -682,35 +628,10 @@ function DeliveryTracking() {
 function DeliveryAddress() {
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-2">
-        <h3 className="text-lg sm:text-xl font-bold">배송지관리</h3>
-        <button className="btn-secondary text-xs sm:text-sm py-2 px-3 sm:px-4 whitespace-nowrap">
-          + 추가
-        </button>
-      </div>
-      <div className="space-y-3">
-        {deliveryAddresses.map((addr) => (
-          <div key={addr.id} className="card p-4 sm:p-5">
-            <div className="flex items-start justify-between gap-2">
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2 mb-2 flex-wrap">
-                  <span className="font-medium text-sm sm:text-base">{addr.name}</span>
-                  {addr.isDefault && (
-                    <span className="px-2 py-0.5 text-[10px] sm:text-xs rounded bg-ruby-600/20 text-ruby-400">
-                      기본
-                    </span>
-                  )}
-                </div>
-                <p className="text-xs sm:text-sm text-gray-300">{addr.recipient} · {addr.phone}</p>
-                <p className="text-xs sm:text-sm text-gray-400 mt-1 break-words">{addr.address}</p>
-              </div>
-              <div className="flex gap-2 flex-shrink-0">
-                <button className="text-xs sm:text-sm text-gray-400 hover:text-white">수정</button>
-                <button className="text-xs sm:text-sm text-gray-400 hover:text-red-400">삭제</button>
-              </div>
-            </div>
-          </div>
-        ))}
+      <h3 className="text-lg sm:text-xl font-bold">배송지관리</h3>
+      <div className="card p-8 text-center">
+        <div className="text-gray-400 mb-2">등록된 배송지가 없습니다.</div>
+        <p className="text-sm text-gray-500">교환 신청 시 배송지를 입력할 수 있습니다.</p>
       </div>
     </div>
   );
@@ -720,25 +641,10 @@ function Coupons() {
   return (
     <div className="space-y-4">
       <h3 className="text-lg sm:text-xl font-bold">할인쿠폰</h3>
-      <p className="text-sm text-gray-400">보유 쿠폰 <span className="text-ruby-400 font-medium">{coupons.length}장</span></p>
-      <div className="space-y-3">
-        {coupons.map((coupon) => (
-          <div key={coupon.id} className="card p-4 sm:p-5 border-l-4 border-ruby-500">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0 flex-1">
-                <p className="font-medium text-sm sm:text-base mb-1 truncate">{coupon.name}</p>
-                <p className="text-xl sm:text-2xl font-bold text-ruby-400">{coupon.discount}</p>
-                <p className="text-[10px] sm:text-xs text-gray-500 mt-1">
-                  {coupon.minOrder.toLocaleString()}원 이상
-                </p>
-              </div>
-              <div className="text-right flex-shrink-0">
-                <p className="text-xs text-gray-400">유효기간</p>
-                <p className="text-xs sm:text-sm font-medium">~{coupon.expiry}</p>
-              </div>
-            </div>
-          </div>
-        ))}
+      <p className="text-sm text-gray-400">보유 쿠폰 <span className="text-ruby-400 font-medium">0장</span></p>
+      <div className="card p-8 text-center">
+        <div className="text-gray-400 mb-2">보유한 쿠폰이 없습니다.</div>
+        <p className="text-sm text-gray-500">이벤트 참여 시 쿠폰이 지급될 수 있습니다.</p>
       </div>
     </div>
   );
@@ -1205,8 +1111,8 @@ export default function MyPage() {
 
   // localStorage에서 로그인 상태 및 사용자 정보 확인
   const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
-  const loggedInUserName = localStorage.getItem('userName') || userData.name;
-  const loggedInUserEmail = localStorage.getItem('userEmail') || userData.email;
+  const loggedInUserName = localStorage.getItem('userName') || defaultUserData.name;
+  const loggedInUserEmail = localStorage.getItem('userEmail') || defaultUserData.email;
 
   if (!isLoggedIn) {
     return (
