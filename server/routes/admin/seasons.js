@@ -130,6 +130,12 @@ router.get('/:seasonId/payments', requirePermission('view'), asyncHandler(async 
   res.json({ success: true, data: payments });
 }));
 
+// Delete payment
+router.delete('/payments/:paymentId', requirePermission('manage_rounds'), asyncHandler(async (req, res) => {
+  await seasonService.deletePayment(req.params.paymentId);
+  res.json({ success: true, message: '결제 내역이 삭제되었습니다.' });
+}));
+
 // ==================== SETTLEMENT ====================
 
 // Get settlement preview

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getSeasons, getRoundsBySeason, getPaymentsBySeason, refundPayment } from '../../api/seasonApi';
+import { getSeasons, getRoundsBySeason, getPaymentsBySeason, refundPayment, deletePayment } from '../../api/seasonApi';
 import { formatAmount } from '../../utils/localStorage';
 
 const formatDate = (dateStr) => {
@@ -33,6 +33,8 @@ export default function PaymentManagement() {
   const [refundModal, setRefundModal] = useState({ open: false, payment: null });
   const [refundReason, setRefundReason] = useState('');
   const [refundLoading, setRefundLoading] = useState(false);
+  const [deleteModal, setDeleteModal] = useState({ open: false, payment: null });
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -153,6 +155,27 @@ export default function PaymentManagement() {
       alert('환불 처리 중 오류가 발생했습니다.');
     } finally {
       setRefundLoading(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!deleteModal.payment) return;
+
+    setDeleteLoading(true);
+    try {
+      const result = await deletePayment(deleteModal.payment.id);
+
+      if (result.success) {
+        alert('결제 내역이 삭제되었습니다.');
+        setDeleteModal({ open: false, payment: null });
+        loadData();
+      } else {
+        alert(result.error || '삭제에 실패했습니다.');
+      }
+    } catch (error) {
+      alert('삭제 처리 중 오류가 발생했습니다.');
+    } finally {
+      setDeleteLoading(false);
     }
   };
 
@@ -288,17 +311,25 @@ export default function PaymentManagement() {
                 </div>
                 <div className="mt-3 pt-3 border-t border-dark-600 flex items-center justify-between">
                   <p className="text-gray-500 text-xs font-mono">{payment.id}</p>
-                  {payment.status === 'success' && payment.payment_key && payment.amount > 0 && (
+                  <div className="flex items-center gap-2">
+                    {payment.status === 'success' && payment.payment_key && payment.amount > 0 && (
+                      <button
+                        onClick={() => setRefundModal({ open: true, payment })}
+                        className="px-3 py-1.5 bg-orange-600/20 hover:bg-orange-600/30 text-orange-400 rounded-lg text-xs transition-colors"
+                      >
+                        환불
+                      </button>
+                    )}
+                    {payment.status === 'refunded' && (
+                      <span className="text-gray-500 text-xs">환불완료</span>
+                    )}
                     <button
-                      onClick={() => setRefundModal({ open: true, payment })}
-                      className="px-3 py-1.5 bg-orange-600/20 hover:bg-orange-600/30 text-orange-400 rounded-lg text-xs transition-colors"
+                      onClick={() => setDeleteModal({ open: true, payment })}
+                      className="px-3 py-1.5 bg-red-600/20 hover:bg-red-600/30 text-red-400 rounded-lg text-xs transition-colors"
                     >
-                      환불
+                      삭제
                     </button>
-                  )}
-                  {payment.status === 'refunded' && (
-                    <span className="text-gray-500 text-xs">환불완료</span>
-                  )}
+                  </div>
                 </div>
               </div>
             ))}
@@ -349,17 +380,25 @@ export default function PaymentManagement() {
                         <span className="text-gray-300 text-sm">{formatDate(payment.paid_at)}</span>
                       </td>
                       <td className="px-4 py-4 text-center">
-                        {payment.status === 'success' && payment.payment_key && payment.amount > 0 && (
+                        <div className="flex items-center justify-center gap-2">
+                          {payment.status === 'success' && payment.payment_key && payment.amount > 0 && (
+                            <button
+                              onClick={() => setRefundModal({ open: true, payment })}
+                              className="px-3 py-1.5 bg-orange-600/20 hover:bg-orange-600/30 text-orange-400 rounded-lg text-xs transition-colors"
+                            >
+                              환불
+                            </button>
+                          )}
+                          {payment.status === 'refunded' && (
+                            <span className="text-gray-500 text-xs">환불완료</span>
+                          )}
                           <button
-                            onClick={() => setRefundModal({ open: true, payment })}
-                            className="px-3 py-1.5 bg-orange-600/20 hover:bg-orange-600/30 text-orange-400 rounded-lg text-xs transition-colors"
+                            onClick={() => setDeleteModal({ open: true, payment })}
+                            className="px-3 py-1.5 bg-red-600/20 hover:bg-red-600/30 text-red-400 rounded-lg text-xs transition-colors"
                           >
-                            환불
+                            삭제
                           </button>
-                        )}
-                        {payment.status === 'refunded' && (
-                          <span className="text-gray-500 text-xs">환불완료</span>
-                        )}
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -426,6 +465,54 @@ export default function PaymentManagement() {
                 className="flex-1 px-4 py-2.5 bg-orange-600 hover:bg-orange-500 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {refundLoading ? '처리 중...' : '환불 처리'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 삭제 모달 */}
+      {deleteModal.open && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+          <div className="bg-dark-800 border border-dark-600 rounded-xl w-full max-w-md">
+            <div className="p-6 border-b border-dark-600">
+              <h3 className="text-lg font-semibold text-white">결제 내역 삭제</h3>
+            </div>
+            <div className="p-6 space-y-4">
+              <div className="bg-dark-700 rounded-lg p-4 space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-400">주문번호</span>
+                  <span className="text-white font-mono">{deleteModal.payment?.id}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-400">고객</span>
+                  <span className="text-white">{deleteModal.payment?.user_name}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-400">결제 금액</span>
+                  <span className="text-ruby-400 font-medium">{formatAmount(deleteModal.payment?.amount)}</span>
+                </div>
+              </div>
+
+              <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4">
+                <p className="text-red-400 text-sm">
+                  결제 내역을 삭제하면 복구할 수 없습니다. 토스페이먼츠 환불은 별도로 처리되지 않으며, DB에서만 삭제됩니다.
+                </p>
+              </div>
+            </div>
+            <div className="p-6 border-t border-dark-600 flex gap-3">
+              <button
+                onClick={() => setDeleteModal({ open: false, payment: null })}
+                className="flex-1 px-4 py-2.5 bg-dark-600 hover:bg-dark-500 text-gray-300 rounded-lg transition-colors"
+              >
+                취소
+              </button>
+              <button
+                onClick={handleDelete}
+                disabled={deleteLoading}
+                className="flex-1 px-4 py-2.5 bg-red-600 hover:bg-red-500 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {deleteLoading ? '처리 중...' : '삭제'}
               </button>
             </div>
           </div>

@@ -547,6 +547,13 @@ export const adminApi = {
       return result.data;
     },
 
+    deletePayment: async (paymentId) => {
+      const result = await apiFetch(`/admin/seasons/payments/${paymentId}`, {
+        method: 'DELETE',
+      }, true);
+      return result;
+    },
+
     getSettlementPreview: async (seasonId, settlementType, winningRoundId, winningValue) => {
       const result = await apiFetch(`/admin/seasons/${seasonId}/settlement/preview`, {
         method: 'POST',

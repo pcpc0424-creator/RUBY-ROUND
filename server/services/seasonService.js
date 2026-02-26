@@ -243,6 +243,17 @@ const getPaymentsByUser = async (userId) => {
   });
 };
 
+// Delete payment
+const deletePayment = async (paymentId) => {
+  const payment = await getPaymentById(paymentId);
+  if (!payment) {
+    throw { statusCode: 404, message: '결제를 찾을 수 없습니다.' };
+  }
+
+  await query('DELETE FROM round_payments WHERE id = ?', [paymentId]);
+  return { success: true };
+};
+
 // ==================== SETTLEMENT ====================
 
 // Get settlement preview
@@ -509,6 +520,7 @@ module.exports = {
   getPaymentById,
   getPaymentsBySeason,
   getPaymentsByUser,
+  deletePayment,
   // Settlement
   getSettlementPreview,
   executeSettlement,

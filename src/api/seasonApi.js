@@ -129,6 +129,16 @@ export const getPaymentsByUser = async (userEmail) => {
   }
 };
 
+// 결제 내역 삭제 (관리자)
+export const deletePayment = async (paymentId) => {
+  try {
+    await adminApi.seasons.deletePayment(paymentId);
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+};
+
 // ========== 시즌 정산 API (핵심) ==========
 
 // 정산 미리보기 (실제 정산 전 시뮬레이션)
