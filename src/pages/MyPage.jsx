@@ -105,9 +105,10 @@ function ParticipationHistory() {
         const result = await getUserLedger(userEmail);
         if (result.success && result.data) {
           // 참여 내역만 필터링
-          const participationItems = result.data.filter(item =>
+          const ledgerItems = result.data.ledger || result.data || [];
+          const participationItems = Array.isArray(ledgerItems) ? ledgerItems.filter(item =>
             item.type === 'participation' || item.description?.includes('참여')
-          );
+          ) : [];
           setParticipations(participationItems);
         }
       }
@@ -695,7 +696,7 @@ function Profile() {
     loadUserInfo();
   }, []);
 
-  // PASS 본인인증 처리
+  // PASS 본인인증 처리 (새로운 NICE 통합인증 방식)
   const handlePassVerification = useCallback(async () => {
     setVerificationLoading(true);
     setVerificationError('');
@@ -718,10 +719,15 @@ function Profile() {
 
       let popupUrl;
       if (data.simulation) {
+        // 시뮬레이션 모드
         popupUrl = data.formUrl;
       } else {
-        popupUrl = `https://nice.checkplus.co.kr/CheckPlusSa498AgreeStmt/mob/agree?m=checkplusService&token_version_id=${data.token_version_id}&enc_data=${encodeURIComponent(data.enc_data)}&integrity_value=${encodeURIComponent(data.integrity_value)}`;
+        // 새로운 NICE 통합인증 방식
+        popupUrl = data.authUrl;
       }
+
+      // requestNo 저장 (새로운 방식에서 필요)
+      const currentRequestNo = data.requestNo;
 
       const popup = window.open(popupUrl, 'niceAuth', 'width=480,height=720,scrollbars=yes');
 
@@ -733,56 +739,121 @@ function Profile() {
 
       const handleMessage = async (event) => {
         if (event.origin !== window.location.origin) return;
-        if (event.data?.type !== 'NICE_VERIFICATION') return;
 
-        window.removeEventListener('message', handleMessage);
+        // 새로운 NICE 통합인증 방식
+        if (event.data?.type === 'NICE_VERIFICATION_NEW') {
+          window.removeEventListener('message', handleMessage);
 
-        const resultToken = event.data.token;
-        if (!resultToken) {
-          setVerificationError('인증 결과를 받을 수 없습니다.');
-          setVerificationLoading(false);
-          return;
-        }
-
-        const resultRes = await fetch(`${API_BASE}/api/auth/nice/result/${resultToken}`);
-        const resultData = await resultRes.json();
-
-        if (!resultData.success) {
-          setVerificationError(resultData.error || '인증 결과 조회에 실패했습니다.');
-          setVerificationLoading(false);
-          return;
-        }
-
-        const result = resultData.data;
-
-        if (!result.isAdult) {
-          setVerificationError('만 19세 미만은 이용할 수 없습니다.');
-          setVerificationLoading(false);
-          return;
-        }
-
-        // 성인인증 완료 처리
-        const email = localStorage.getItem('userEmail');
-        if (email) {
-          const passResult = await completePassVerification(email, {
-            name: result.name,
-            birthDate: result.birthDate,
-            ci: result.ci,
-            di: result.di,
-            isAdult: result.isAdult,
-            verifiedAt: result.verifiedAt,
-          });
-
-          if (passResult.success) {
-            setAdultVerified(true);
-            setAdultVerifiedAt(new Date().toISOString());
-            localStorage.setItem('adultVerified', 'true');
-          } else {
-            setVerificationError(passResult.error || '인증 처리에 실패했습니다.');
+          const webTransactionId = event.data.webTransactionId;
+          if (!webTransactionId) {
+            setVerificationError('인증 결과를 받을 수 없습니다.');
+            setVerificationLoading(false);
+            return;
           }
+
+          // 결과 조회 (새로운 방식)
+          const verifyRes = await fetch(`${API_BASE}/api/auth/nice/verify`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              requestNo: currentRequestNo,
+              webTransactionId,
+            }),
+          });
+          const verifyData = await verifyRes.json();
+
+          if (!verifyData.success) {
+            setVerificationError(verifyData.error || '인증 결과 조회에 실패했습니다.');
+            setVerificationLoading(false);
+            return;
+          }
+
+          const result = verifyData.data;
+
+          if (!result.isAdult) {
+            setVerificationError('만 19세 미만은 이용할 수 없습니다.');
+            setVerificationLoading(false);
+            return;
+          }
+
+          // 성인인증 완료 처리
+          const email = localStorage.getItem('userEmail');
+          if (email) {
+            const passResult = await completePassVerification(email, {
+              name: result.name,
+              birthDate: result.birthDate,
+              gender: result.gender,
+              ci: result.ci,
+              di: result.di,
+              isAdult: result.isAdult,
+              verifiedAt: new Date().toISOString(),
+            });
+
+            if (passResult.success) {
+              setAdultVerified(true);
+              setAdultVerifiedAt(new Date().toISOString());
+              localStorage.setItem('adultVerified', 'true');
+            } else {
+              setVerificationError(passResult.error || '인증 처리에 실패했습니다.');
+            }
+          }
+
+          setVerificationLoading(false);
+          return;
         }
 
-        setVerificationLoading(false);
+        // 기존 방식 (시뮬레이션 등)
+        if (event.data?.type === 'NICE_VERIFICATION') {
+          window.removeEventListener('message', handleMessage);
+
+          const resultToken = event.data.token;
+          if (!resultToken) {
+            setVerificationError('인증 결과를 받을 수 없습니다.');
+            setVerificationLoading(false);
+            return;
+          }
+
+          const resultRes = await fetch(`${API_BASE}/api/auth/nice/result/${resultToken}`);
+          const resultData = await resultRes.json();
+
+          if (!resultData.success) {
+            setVerificationError(resultData.error || '인증 결과 조회에 실패했습니다.');
+            setVerificationLoading(false);
+            return;
+          }
+
+          const result = resultData.data;
+
+          if (!result.isAdult) {
+            setVerificationError('만 19세 미만은 이용할 수 없습니다.');
+            setVerificationLoading(false);
+            return;
+          }
+
+          // 성인인증 완료 처리
+          const email = localStorage.getItem('userEmail');
+          if (email) {
+            const passResult = await completePassVerification(email, {
+              name: result.name,
+              birthDate: result.birthDate,
+              gender: result.gender,
+              ci: result.ci,
+              di: result.di,
+              isAdult: result.isAdult,
+              verifiedAt: result.verifiedAt,
+            });
+
+            if (passResult.success) {
+              setAdultVerified(true);
+              setAdultVerifiedAt(new Date().toISOString());
+              localStorage.setItem('adultVerified', 'true');
+            } else {
+              setVerificationError(passResult.error || '인증 처리에 실패했습니다.');
+            }
+          }
+
+          setVerificationLoading(false);
+        }
       };
 
       window.addEventListener('message', handleMessage);

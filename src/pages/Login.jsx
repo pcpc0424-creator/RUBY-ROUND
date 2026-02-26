@@ -28,7 +28,7 @@ export default function Login() {
   const [verificationResult, setVerificationResult] = useState(null);
   const [verificationLoading, setVerificationLoading] = useState(false);
 
-  // PASS 본인인증 처리
+  // PASS 본인인증 처리 (새로운 NICE 통합인증 방식)
   const handlePassVerification = useCallback(async () => {
     setVerificationLoading(true);
     setError('');
@@ -52,11 +52,15 @@ export default function Login() {
       // 팝업 열기
       let popupUrl;
       if (data.simulation) {
+        // 시뮬레이션 모드
         popupUrl = data.formUrl;
       } else {
-        // 실제 NICE 인증 페이지 (form submit 방식)
-        popupUrl = `https://nice.checkplus.co.kr/CheckPlusSa498AgreeStmt/mob/agree?m=checkplusService&token_version_id=${data.token_version_id}&enc_data=${encodeURIComponent(data.enc_data)}&integrity_value=${encodeURIComponent(data.integrity_value)}`;
+        // 새로운 NICE 통합인증 방식
+        popupUrl = data.authUrl;
       }
+
+      // requestNo 저장 (새로운 방식에서 필요)
+      const currentRequestNo = data.requestNo;
 
       const popup = window.open(popupUrl, 'niceAuth', 'width=480,height=720,scrollbars=yes');
 
@@ -69,47 +73,102 @@ export default function Login() {
       // postMessage 이벤트 리스너
       const handleMessage = async (event) => {
         if (event.origin !== window.location.origin) return;
-        if (event.data?.type !== 'NICE_VERIFICATION') return;
 
-        window.removeEventListener('message', handleMessage);
+        // 새로운 NICE 통합인증 방식
+        if (event.data?.type === 'NICE_VERIFICATION_NEW') {
+          window.removeEventListener('message', handleMessage);
 
-        const resultToken = event.data.token;
-        if (!resultToken) {
-          setError('인증 결과를 받을 수 없습니다.');
+          const webTransactionId = event.data.webTransactionId;
+          if (!webTransactionId) {
+            setError('인증 결과를 받을 수 없습니다.');
+            setVerificationLoading(false);
+            return;
+          }
+
+          // 결과 조회 (새로운 방식)
+          const verifyRes = await fetch(`${API_BASE}/api/auth/nice/verify`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              requestNo: currentRequestNo,
+              webTransactionId,
+            }),
+          });
+          const verifyData = await verifyRes.json();
+
+          if (!verifyData.success) {
+            setError(verifyData.error || '인증 결과 조회에 실패했습니다.');
+            setVerificationLoading(false);
+            return;
+          }
+
+          const result = verifyData.data;
+
+          if (!result.isAdult) {
+            setError('만 19세 미만은 가입할 수 없습니다.');
+            setVerificationLoading(false);
+            return;
+          }
+
+          setVerificationResult({
+            name: result.name,
+            maskedName: result.maskedName,
+            birthDate: result.birthDate,
+            maskedBirthDate: result.maskedBirthDate,
+            gender: result.gender,
+            ci: result.ci,
+            di: result.di,
+            isAdult: result.isAdult,
+            verified: true,
+            verifiedAt: new Date().toISOString(),
+          });
           setVerificationLoading(false);
           return;
         }
 
-        // 결과 조회
-        const resultRes = await fetch(`${API_BASE}/api/auth/nice/result/${resultToken}`);
-        const resultData = await resultRes.json();
+        // 기존 방식 (시뮬레이션 등)
+        if (event.data?.type === 'NICE_VERIFICATION') {
+          window.removeEventListener('message', handleMessage);
 
-        if (!resultData.success) {
-          setError(resultData.error || '인증 결과 조회에 실패했습니다.');
+          const resultToken = event.data.token;
+          if (!resultToken) {
+            setError('인증 결과를 받을 수 없습니다.');
+            setVerificationLoading(false);
+            return;
+          }
+
+          // 결과 조회
+          const resultRes = await fetch(`${API_BASE}/api/auth/nice/result/${resultToken}`);
+          const resultData = await resultRes.json();
+
+          if (!resultData.success) {
+            setError(resultData.error || '인증 결과 조회에 실패했습니다.');
+            setVerificationLoading(false);
+            return;
+          }
+
+          const result = resultData.data;
+
+          if (!result.isAdult) {
+            setError('만 19세 미만은 가입할 수 없습니다.');
+            setVerificationLoading(false);
+            return;
+          }
+
+          setVerificationResult({
+            name: result.name,
+            maskedName: result.maskedName,
+            birthDate: result.birthDate,
+            maskedBirthDate: result.maskedBirthDate,
+            gender: result.gender,
+            ci: result.ci,
+            di: result.di,
+            isAdult: result.isAdult,
+            verified: true,
+            verifiedAt: result.verifiedAt,
+          });
           setVerificationLoading(false);
-          return;
         }
-
-        const result = resultData.data;
-
-        if (!result.isAdult) {
-          setError('만 19세 미만은 가입할 수 없습니다.');
-          setVerificationLoading(false);
-          return;
-        }
-
-        setVerificationResult({
-          name: result.name,
-          maskedName: result.maskedName,
-          birthDate: result.birthDate,
-          maskedBirthDate: result.maskedBirthDate,
-          ci: result.ci,
-          di: result.di,
-          isAdult: result.isAdult,
-          verified: true,
-          verifiedAt: result.verifiedAt,
-        });
-        setVerificationLoading(false);
       };
 
       window.addEventListener('message', handleMessage);
@@ -197,6 +256,12 @@ export default function Login() {
         }
       } else {
         // 회원가입 처리
+        if (!verificationResult?.verified) {
+          setError('성인인증을 완료해주세요. 만 19세 이상만 가입 가능합니다.');
+          setLoading(false);
+          return;
+        }
+
         if (formData.password !== formData.confirmPassword) {
           setError('비밀번호가 일치하지 않습니다.');
           setLoading(false);
@@ -218,16 +283,12 @@ export default function Login() {
           return;
         }
 
-        // PASS 본인인증 결과가 있으면 자동 승인
-        if (verificationResult?.verified) {
-          const passResult = await completePassVerification(formData.email, verificationResult);
-          if (passResult.success) {
-            setSuccess('회원가입이 완료되었습니다. 성인 인증이 완료되었습니다. 로그인해주세요.');
-          } else {
-            setSuccess('회원가입이 완료되었습니다. 성인 인증 처리 중 문제가 발생했습니다. 마이페이지에서 다시 시도해주세요.');
-          }
-        } else {
+        // 성인인증 결과 저장
+        const passResult = await completePassVerification(formData.email, verificationResult);
+        if (passResult.success) {
           setSuccess('회원가입이 완료되었습니다. 로그인해주세요.');
+        } else {
+          setSuccess('회원가입이 완료되었습니다. 성인 인증 처리 중 문제가 발생했습니다. 마이페이지에서 다시 시도해주세요.');
         }
 
         // 로그인 상태로 전환
@@ -386,75 +447,50 @@ export default function Login() {
               </div>
 
               {/* 성인 인증 섹션 */}
-              <div className="animate-fade-in-up p-4 bg-dark-800/50 border border-dark-600 rounded-lg">
-                <div className="flex items-center gap-2 mb-3">
-                  <svg className="w-4 h-4 sm:w-5 sm:h-5 text-ruby-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                  </svg>
-                  <span className="text-xs sm:text-sm font-medium text-ruby-400">성인 인증</span>
-                </div>
-
+              <div className="animate-fade-in-up">
+                <label className="block text-xs sm:text-sm font-medium text-gray-300 mb-1.5 sm:mb-2">
+                  성인인증 <span className="text-ruby-400">*</span>
+                </label>
                 {verificationResult?.verified ? (
-                  <div>
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="px-2 py-1 text-xs rounded-full bg-green-600/20 text-green-400 border border-green-600/30">
-                        인증완료
-                      </span>
+                  <div className="p-3 bg-green-600/10 border border-green-600/30 rounded-lg">
+                    <div className="flex items-center gap-2 text-green-400">
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                      <span className="text-sm font-medium">본인인증 완료</span>
                     </div>
-                    <p className="text-xs sm:text-sm text-gray-300">
-                      인증 이름: <span className="text-white">{verificationResult.maskedName}</span>
-                      <span className="text-dark-500 mx-2">|</span>
-                      생년월일: <span className="text-white">{verificationResult.maskedBirthDate}</span>
+                    <p className="mt-1 text-xs text-gray-400">
+                      {verificationResult.maskedName} ({verificationResult.maskedBirthDate})
                     </p>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setVerificationResult(null);
-                        handlePassVerification();
-                      }}
-                      className="mt-3 text-xs sm:text-sm text-gray-400 hover:text-ruby-400 transition-colors underline underline-offset-2"
-                    >
-                      다시 인증하기
-                    </button>
                   </div>
                 ) : (
-                  <div>
-                    <div className="flex items-center gap-2 mb-3">
-                      <span className="px-2 py-1 text-xs rounded-full bg-red-600/20 text-red-400 border border-red-600/30">
-                        미인증
-                      </span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={handlePassVerification}
-                      disabled={verificationLoading}
-                      className="w-full py-2.5 sm:py-3 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white rounded-lg font-medium text-sm sm:text-base transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                    >
-                      {verificationLoading ? (
-                        <>
-                          <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                          </svg>
-                          인증 진행 중...
-                        </>
-                      ) : (
-                        <>
-                          <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                          </svg>
-                          PASS 본인인증 하기
-                        </>
-                      )}
-                    </button>
-                    <p className="mt-2 text-[10px] sm:text-xs text-gray-500">
-                      * 본인 명의 휴대폰으로 인증이 진행됩니다.
-                    </p>
-                    <p className="mt-1 text-[10px] sm:text-xs text-gray-500">
-                      * 만 19세 이상만 가입 가능합니다.
-                    </p>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={handlePassVerification}
+                    disabled={verificationLoading}
+                    className="w-full px-3 py-2.5 sm:px-4 sm:py-3 bg-dark-800 border border-dark-600 rounded-lg text-gray-300 hover:border-ruby-500 hover:text-white transition-all duration-300 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {verificationLoading ? (
+                      <>
+                        <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                        </svg>
+                        <span className="text-sm">인증 진행 중...</span>
+                      </>
+                    ) : (
+                      <>
+                        <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                        </svg>
+                        <span className="text-sm">휴대폰 본인인증</span>
+                      </>
+                    )}
+                  </button>
                 )}
+                <p className="mt-1.5 text-[10px] sm:text-xs text-gray-500">
+                  만 19세 이상만 가입 가능합니다.
+                </p>
               </div>
 
               <div className="flex items-start gap-2 sm:gap-3 animate-fade-in-up">

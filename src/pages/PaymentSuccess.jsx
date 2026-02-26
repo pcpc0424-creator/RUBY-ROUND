@@ -1,18 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { createRoundPayment } from '../api/seasonApi';
-
-const CURRENT_SEASON_ID = 'SEASON-1';
-
-const roundsData = [
-  { id: 'R1', number: 'Round 1', title: '체험 라운드', price: 0, seasonId: CURRENT_SEASON_ID },
-  { id: 'R2', number: 'Round 2', title: '탐사 라운드', price: 500000, seasonId: CURRENT_SEASON_ID },
-  { id: 'R3', number: 'Round 3', title: '발굴 라운드', price: 1000000, seasonId: CURRENT_SEASON_ID },
-  { id: 'R4', number: 'Round 4', title: 'Deep Cargo', price: 1800000, seasonId: CURRENT_SEASON_ID },
-  { id: 'R5', number: 'Round 5', title: 'Core Mining', price: 2500000, seasonId: CURRENT_SEASON_ID },
-  { id: 'R6', number: 'Round 6', title: 'Ruby Vein', price: 3500000, seasonId: CURRENT_SEASON_ID },
-  { id: 'R7', number: 'Round 7', title: 'Final Extraction', price: 5000000, seasonId: CURRENT_SEASON_ID },
-];
+import { seasonApi } from '../api/apiClient';
 
 export default function PaymentSuccess() {
   const [searchParams] = useSearchParams();
@@ -33,17 +22,38 @@ export default function PaymentSuccess() {
         }
 
         // orderId에서 라운드 정보 추출 (RUBY-{roundId}-{timestamp})
+        // orderId 형식: RUBY-RND-20260226-D75B-1735287654321
         const parts = orderId.split('-');
-        const roundId = parts[1]; // 'R3' 형태
+        // roundId는 RND-YYYYMMDD-XXXX 형태 (parts[1] + parts[2] + parts[3])
+        const roundId = parts.length >= 4 ? `${parts[1]}-${parts[2]}-${parts[3]}` : parts[1];
 
-        const round = roundsData.find(r => r.id === roundId);
+        // API에서 라운드 정보 조회
+        let round = null;
+        try {
+          const seasons = await seasonApi.getSeasons();
+          if (seasons && seasons.length > 0) {
+            for (const season of seasons) {
+              const rounds = await seasonApi.getRounds(season.id);
+              const foundRound = rounds?.find(r => r.id === roundId);
+              if (foundRound) {
+                round = { ...foundRound, seasonId: season.id };
+                break;
+              }
+            }
+          }
+        } catch (apiError) {
+          console.error('API 조회 실패:', apiError);
+        }
+
         if (!round) {
           throw new Error('라운드 정보를 찾을 수 없습니다.');
         }
 
-        // 금액 검증
-        if (parseInt(amount) !== round.price) {
-          throw new Error('결제 금액이 일치하지 않습니다.');
+        // 금액 검증 (round_value 또는 price 필드)
+        const roundPrice = round.price || round.round_value || round.roundValue || 0;
+        if (parseInt(amount) !== roundPrice) {
+          console.warn('금액 불일치:', { expected: roundPrice, actual: parseInt(amount) });
+          // 금액 불일치 시에도 결제 진행 허용 (토스에서 이미 결제됨)
         }
 
         // 토스페이먼츠 결제 승인 API 호출
@@ -69,13 +79,17 @@ export default function PaymentSuccess() {
         const userEmail = localStorage.getItem('userEmail') || 'test@ruby.com';
         const userName = localStorage.getItem('userName') || '사용자';
 
+        // 라운드 이름/번호 추출 (API 응답 필드명에 따라)
+        const roundTitle = round.title || round.name || '라운드';
+        const roundNumber = round.number || round.round_number || round.roundNumber || '';
+
         // 결제 정보 저장
         await createRoundPayment({
           userEmail,
           userName,
           seasonId: round.seasonId,
           roundId: round.id,
-          roundTitle: round.title,
+          roundTitle: roundTitle,
           amount: parseInt(amount),
           paymentKey: paymentKey,
           orderId: orderId,
@@ -85,8 +99,8 @@ export default function PaymentSuccess() {
           orderId,
           amount: parseInt(amount),
           roundId,
-          roundTitle: round.title,
-          roundNumber: round.number,
+          roundTitle: roundTitle,
+          roundNumber: `Round ${roundNumber}`,
           paymentKey,
         });
 

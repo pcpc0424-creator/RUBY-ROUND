@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getSeasons, getRoundsBySeason, getPaymentsBySeason } from '../../api/seasonApi';
+import { getSeasons, getRoundsBySeason, getPaymentsBySeason, refundPayment } from '../../api/seasonApi';
 import { formatAmount } from '../../utils/localStorage';
 
 const formatDate = (dateStr) => {
@@ -30,6 +30,9 @@ export default function PaymentManagement() {
     totalAmount: 0,
     uniqueUsers: 0,
   });
+  const [refundModal, setRefundModal] = useState({ open: false, payment: null });
+  const [refundReason, setRefundReason] = useState('');
+  const [refundLoading, setRefundLoading] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -117,6 +120,7 @@ export default function PaymentManagement() {
       pending: { label: '대기', className: 'bg-yellow-500/20 text-yellow-400' },
       failed: { label: '실패', className: 'bg-red-500/20 text-red-400' },
       cancelled: { label: '취소', className: 'bg-gray-500/20 text-gray-400' },
+      refunded: { label: '환불', className: 'bg-orange-500/20 text-orange-400' },
     };
     const config = configs[status] || configs.success;
     return (
@@ -124,6 +128,32 @@ export default function PaymentManagement() {
         {config.label}
       </span>
     );
+  };
+
+  const handleRefund = async () => {
+    if (!refundModal.payment) return;
+
+    setRefundLoading(true);
+    try {
+      const result = await refundPayment(
+        refundModal.payment.id,
+        refundModal.payment.payment_key,
+        refundReason || '관리자 요청에 의한 환불'
+      );
+
+      if (result.success) {
+        alert('환불이 완료되었습니다.');
+        setRefundModal({ open: false, payment: null });
+        setRefundReason('');
+        loadData();
+      } else {
+        alert(result.error || '환불 처리에 실패했습니다.');
+      }
+    } catch (error) {
+      alert('환불 처리 중 오류가 발생했습니다.');
+    } finally {
+      setRefundLoading(false);
+    }
   };
 
   return (
@@ -256,8 +286,19 @@ export default function PaymentManagement() {
                     <span className="text-gray-300">{formatDate(payment.paid_at)}</span>
                   </div>
                 </div>
-                <div className="mt-3 pt-3 border-t border-dark-600">
+                <div className="mt-3 pt-3 border-t border-dark-600 flex items-center justify-between">
                   <p className="text-gray-500 text-xs font-mono">{payment.id}</p>
+                  {payment.status === 'success' && payment.payment_key && payment.amount > 0 && (
+                    <button
+                      onClick={() => setRefundModal({ open: true, payment })}
+                      className="px-3 py-1.5 bg-orange-600/20 hover:bg-orange-600/30 text-orange-400 rounded-lg text-xs transition-colors"
+                    >
+                      환불
+                    </button>
+                  )}
+                  {payment.status === 'refunded' && (
+                    <span className="text-gray-500 text-xs">환불완료</span>
+                  )}
                 </div>
               </div>
             ))}
@@ -275,6 +316,7 @@ export default function PaymentManagement() {
                     <th className="px-4 py-3 text-right text-xs font-medium text-gray-400">금액</th>
                     <th className="px-4 py-3 text-center text-xs font-medium text-gray-400">상태</th>
                     <th className="px-4 py-3 text-right text-xs font-medium text-gray-400">결제일시</th>
+                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-400">관리</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-dark-700">
@@ -306,6 +348,19 @@ export default function PaymentManagement() {
                       <td className="px-4 py-4 text-right">
                         <span className="text-gray-300 text-sm">{formatDate(payment.paid_at)}</span>
                       </td>
+                      <td className="px-4 py-4 text-center">
+                        {payment.status === 'success' && payment.payment_key && payment.amount > 0 && (
+                          <button
+                            onClick={() => setRefundModal({ open: true, payment })}
+                            className="px-3 py-1.5 bg-orange-600/20 hover:bg-orange-600/30 text-orange-400 rounded-lg text-xs transition-colors"
+                          >
+                            환불
+                          </button>
+                        )}
+                        {payment.status === 'refunded' && (
+                          <span className="text-gray-500 text-xs">환불완료</span>
+                        )}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -313,6 +368,68 @@ export default function PaymentManagement() {
             </div>
           </div>
         </>
+      )}
+
+      {/* 환불 모달 */}
+      {refundModal.open && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+          <div className="bg-dark-800 border border-dark-600 rounded-xl w-full max-w-md">
+            <div className="p-6 border-b border-dark-600">
+              <h3 className="text-lg font-semibold text-white">결제 환불</h3>
+            </div>
+            <div className="p-6 space-y-4">
+              <div className="bg-dark-700 rounded-lg p-4 space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-400">주문번호</span>
+                  <span className="text-white font-mono">{refundModal.payment?.id}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-400">고객</span>
+                  <span className="text-white">{refundModal.payment?.user_name}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-400">환불 금액</span>
+                  <span className="text-ruby-400 font-medium">{formatAmount(refundModal.payment?.amount)}</span>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm text-gray-400 mb-2">환불 사유</label>
+                <textarea
+                  value={refundReason}
+                  onChange={(e) => setRefundReason(e.target.value)}
+                  placeholder="환불 사유를 입력하세요"
+                  className="w-full px-4 py-3 bg-dark-700 border border-dark-600 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-ruby-500 resize-none"
+                  rows={3}
+                />
+              </div>
+
+              <div className="bg-orange-500/10 border border-orange-500/30 rounded-lg p-4">
+                <p className="text-orange-400 text-sm">
+                  환불 처리 시 토스페이먼츠를 통해 즉시 환불됩니다. 이 작업은 되돌릴 수 없습니다.
+                </p>
+              </div>
+            </div>
+            <div className="p-6 border-t border-dark-600 flex gap-3">
+              <button
+                onClick={() => {
+                  setRefundModal({ open: false, payment: null });
+                  setRefundReason('');
+                }}
+                className="flex-1 px-4 py-2.5 bg-dark-600 hover:bg-dark-500 text-gray-300 rounded-lg transition-colors"
+              >
+                취소
+              </button>
+              <button
+                onClick={handleRefund}
+                disabled={refundLoading}
+                className="flex-1 px-4 py-2.5 bg-orange-600 hover:bg-orange-500 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {refundLoading ? '처리 중...' : '환불 처리'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

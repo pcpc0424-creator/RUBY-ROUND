@@ -24,6 +24,7 @@ import PaymentFail from './pages/PaymentFail';
 import KakaoCallback from './pages/KakaoCallback';
 import GoogleCallback from './pages/GoogleCallback';
 import NiceCallback from './pages/NiceCallback';
+import SocialSignupVerification from './pages/SocialSignupVerification';
 
 // Admin pages
 import AdminLayout from './components/admin/AdminLayout';
@@ -60,6 +61,7 @@ function App() {
         <Route path="/oauth" element={<KakaoCallback />} />
         <Route path="/oauth/google" element={<GoogleCallback />} />
         <Route path="/auth/nice/callback" element={<NiceCallback />} />
+        <Route path="/signup/verify" element={<SocialSignupVerification />} />
 
         {/* Admin Routes */}
         <Route path="/admin/login" element={<AdminLogin />} />

@@ -210,3 +210,48 @@ export const getAdminUserLedger = async (userId, page = 1, limit = 20) => {
     return { success: false, error: error.message, data: [] };
   }
 };
+
+// ========== 결제 환불 API ==========
+
+// 결제 환불 처리
+export const refundPayment = async (paymentId, paymentKey, cancelReason) => {
+  try {
+    const API_BASE = import.meta.env.VITE_API_URL || '';
+
+    // 1. 토스페이먼츠 환불 요청
+    const refundRes = await fetch(`${API_BASE}/api/payments/refund`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        paymentKey,
+        cancelReason,
+      }),
+    });
+
+    const refundData = await refundRes.json();
+
+    if (!refundData.success) {
+      return { success: false, error: refundData.error || '환불 처리에 실패했습니다.' };
+    }
+
+    // 2. DB 상태 업데이트
+    const updateRes = await fetch(`${API_BASE}/api/admin/payments/${paymentId}/refund`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('rubyround_admin_token')}`,
+      },
+      body: JSON.stringify({ cancelReason }),
+    });
+
+    const updateData = await updateRes.json();
+
+    if (!updateData.success) {
+      console.error('DB 상태 업데이트 실패 (토스 환불은 완료됨):', updateData.error);
+    }
+
+    return { success: true, data: refundData.data };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+};

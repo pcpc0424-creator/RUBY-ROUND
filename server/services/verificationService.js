@@ -82,11 +82,11 @@ const completePassVerification = async (userId, verificationData) => {
   // Check duplicate CI
   if (ci) {
     const existing = await queryOne(
-      'SELECT id, user_email FROM users WHERE verification_ci = ? AND id != ?',
+      'SELECT id, email FROM users WHERE verification_ci = ? AND id != ?',
       [ci, userId]
     );
     if (existing) {
-      throw { statusCode: 409, message: '이미 다른 계정에서 인증된 본인입니다.', existingEmail: existing.user_email };
+      throw { statusCode: 409, message: '이미 다른 계정에서 인증된 본인입니다.', existingEmail: existing.email };
     }
   }
 

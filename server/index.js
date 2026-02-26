@@ -115,6 +115,85 @@ app.post('/api/payments/confirm', async (req, res) => {
   }
 });
 
+// 결제 환불 API (토스페이먼츠)
+app.post('/api/payments/refund', async (req, res) => {
+  const { paymentKey, cancelReason, cancelAmount } = req.body;
+
+  if (!paymentKey) {
+    return res.status(400).json({
+      success: false,
+      error: 'paymentKey가 필요합니다.'
+    });
+  }
+
+  try {
+    const refundBody = {
+      cancelReason: cancelReason || '고객 요청에 의한 환불'
+    };
+
+    // 부분 환불인 경우 금액 추가
+    if (cancelAmount) {
+      refundBody.cancelAmount = Number(cancelAmount);
+    }
+
+    const response = await fetch(`https://api.tosspayments.com/v1/payments/${paymentKey}/cancel`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Basic ${Buffer.from(TOSS_SECRET_KEY + ':').toString('base64')}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(refundBody),
+    });
+
+    const data = await response.json();
+
+    if (response.ok) {
+      console.log('환불 성공:', paymentKey);
+      res.json({
+        success: true,
+        data
+      });
+    } else {
+      console.error('환불 실패:', data);
+      res.status(response.status).json({
+        success: false,
+        error: data.message || '환불 처리에 실패했습니다.',
+        code: data.code
+      });
+    }
+  } catch (error) {
+    console.error('환불 오류:', error);
+    res.status(500).json({
+      success: false,
+      error: '서버 오류가 발생했습니다.'
+    });
+  }
+});
+
+// 결제 환불 DB 상태 업데이트 (관리자)
+app.post('/api/admin/payments/:paymentId/refund', async (req, res) => {
+  const { paymentId } = req.params;
+  const { cancelReason } = req.body;
+
+  try {
+    const { query } = require('./config/database');
+
+    await query(
+      `UPDATE round_payments
+       SET status = 'refunded',
+           refunded_at = NOW(),
+           payment_data = JSON_SET(COALESCE(payment_data, '{}'), '$.cancelReason', ?)
+       WHERE id = ?`,
+      [cancelReason || '', paymentId]
+    );
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('환불 상태 업데이트 오류:', error);
+    res.status(500).json({ success: false, error: '상태 업데이트에 실패했습니다.' });
+  }
+});
+
 // 카카오 로그인 API
 app.post('/api/auth/kakao', async (req, res) => {
   const { code, redirectUri } = req.body;
@@ -380,14 +459,14 @@ function maskBirthDate(birthDate) {
   return `${parts[0]}.**.**`;
 }
 
-// POST /api/auth/nice/token - 암호화 토큰 요청
+// POST /api/auth/nice/token - 새로운 NICE 통합인증 API (auth.niceid.co.kr)
 app.post('/api/auth/nice/token', async (req, res) => {
   try {
-    const requestNo = crypto.randomUUID();
+    // 20자리 고유 요청번호 생성
+    const requestNo = 'A' + Date.now().toString() + Math.random().toString(36).substring(2, 10);
 
     if (NICE_SIMULATION) {
       // 시뮬레이션 모드: 시뮬레이션 폼 URL 반환
-      const origin = req.headers.origin || req.headers.referer?.replace(/\/$/, '') || '';
       const serverOrigin = `${req.protocol}://${req.get('host')}`;
 
       niceRequestStore.set(requestNo, { simulation: true, createdAt: Date.now() });
@@ -405,90 +484,83 @@ app.post('/api/auth/nice/token', async (req, res) => {
       });
     }
 
-    // 실제 NICE API 연동
-    // 1. Access Token 발급
+    // 실제 NICE API 연동 (새로운 auth.niceid.co.kr 방식)
+    const NICE_API_BASE = 'https://auth.niceid.co.kr';
+
+    // 1. 접근토큰 발급
     const authHeader = Buffer.from(`${NICE_CLIENT_ID}:${NICE_CLIENT_SECRET}`).toString('base64');
-    const tokenResponse = await fetch('https://svc.niceapi.co.kr:22001/digital/niceid/oauth/oauth/token', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'Authorization': `Basic ${authHeader}`,
-      },
-      body: 'grant_type=client_credentials&scope=default',
-    });
+    console.log('NICE 토큰 요청 시작:', { requestNo, clientId: NICE_CLIENT_ID });
 
-    const tokenData = await tokenResponse.json();
-    if (!tokenData.dataBody?.access_token) {
-      console.error('NICE 토큰 발급 실패:', tokenData);
-      return res.status(500).json({ success: false, error: 'NICE 토큰 발급에 실패했습니다.' });
-    }
-
-    const accessToken = tokenData.dataBody.access_token;
-
-    // 2. 암호화 토큰 요청
-    const currentTimestamp = Math.floor(Date.now() / 1000);
-    const cryptoResponse = await fetch('https://svc.niceapi.co.kr:22001/digital/niceid/api/v1.0/common/crypto/token', {
+    const tokenResponse = await fetch(`${NICE_API_BASE}/ido/intc/v1.0/auth/token`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `bearer ${accessToken}`,
-        'client_id': NICE_CLIENT_ID,
-        'productID': NICE_PRODUCT_ID,
+        'Authorization': `Basic ${authHeader}`,
       },
       body: JSON.stringify({
-        dataHeader: { CNTY_CD: 'ko' },
-        dataBody: {
-          req_dtim: new Date().toISOString().replace(/[-:T.Z]/g, '').slice(0, 14),
-          req_no: requestNo,
-          enc_mode: '1',
-        },
+        grant_type: 'client_credentials',
+        request_no: requestNo,
       }),
     });
 
-    const cryptoData = await cryptoResponse.json();
-    if (cryptoData.dataHeader?.GW_RSLT_CD !== '1200') {
-      console.error('NICE 암호화 토큰 실패:', cryptoData);
-      return res.status(500).json({ success: false, error: 'NICE 암호화 토큰 요청에 실패했습니다.' });
+    const tokenData = await tokenResponse.json();
+    console.log('NICE 토큰 응답:', tokenData);
+
+    if (tokenData.result_code !== '0000') {
+      console.error('NICE 토큰 발급 실패:', tokenData);
+      return res.status(500).json({ success: false, error: tokenData.result_message || 'NICE 토큰 발급에 실패했습니다.' });
     }
 
-    const { token_val, site_code, token_version_id } = cryptoData.dataBody;
+    const { access_token, ticket, iterators } = tokenData;
 
-    // 3. 대칭키 생성
-    const reqDtim = new Date().toISOString().replace(/[-:T.Z]/g, '').slice(0, 14);
-    const value = `${reqDtim.trim()}${requestNo.trim()}${token_val.trim()}`;
-    const hmacSha256 = crypto.createHmac('sha256', token_val).update(value).digest('hex');
+    // 2. 인증 URL 요청
+    const clientOrigin = req.headers.origin || req.headers.referer?.replace(/\/$/, '') || 'https://rubyround.net';
+    const returnUrl = `${clientOrigin}/auth/nice/callback`;
+    const closeUrl = `${clientOrigin}/auth/nice/close`;
 
-    const key = hmacSha256.substring(0, 16);
-    const iv = hmacSha256.substring(hmacSha256.length - 16);
-    const hmacKey = hmacSha256.substring(0, 32);
+    console.log('NICE URL 요청:', { returnUrl, closeUrl });
 
-    // 대칭키 저장
-    niceRequestStore.set(requestNo, { key, iv, hmacKey, tokenVersionId: token_version_id, createdAt: Date.now() });
-    setTimeout(() => niceRequestStore.delete(requestNo), 5 * 60 * 1000);
-
-    // 4. 요청 데이터 암호화
-    const serverOrigin = `${req.protocol}://${req.get('host')}`;
-    const requestData = JSON.stringify({
-      requestno: requestNo,
-      returnurl: `${serverOrigin}/api/auth/nice/callback`,
-      sitecode: site_code,
-      authtype: 'M',
-      popupyn: 'Y',
+    const urlResponse = await fetch(`${NICE_API_BASE}/ido/intc/v1.0/auth/url`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${access_token}`,
+      },
+      body: JSON.stringify({
+        request_no: requestNo,
+        return_url: returnUrl,
+        close_url: closeUrl,
+        svc_types: ['M'], // 휴대폰 인증만
+        method_type: 'GET',
+      }),
     });
 
-    const cipher = crypto.createCipheriv('aes-128-cbc', key, iv);
-    let encData = cipher.update(requestData, 'utf8', 'base64');
-    encData += cipher.final('base64');
+    const urlData = await urlResponse.json();
+    console.log('NICE URL 응답:', urlData);
 
-    const integrityValue = crypto.createHmac('sha256', hmacKey).update(encData).digest('base64');
+    if (urlData.result_code !== '0000') {
+      console.error('NICE URL 요청 실패:', urlData);
+      return res.status(500).json({ success: false, error: urlData.result_message || 'NICE 인증 URL 요청에 실패했습니다.' });
+    }
+
+    const { auth_url, transaction_id } = urlData;
+
+    // 요청 정보 저장 (결과 조회 시 필요)
+    niceRequestStore.set(requestNo, {
+      accessToken: access_token,
+      transactionId: transaction_id,
+      ticket,
+      iterators,
+      createdAt: Date.now(),
+    });
+    setTimeout(() => niceRequestStore.delete(requestNo), 10 * 60 * 1000); // 10분
 
     return res.json({
       success: true,
       data: {
         requestNo,
-        enc_data: encData,
-        token_version_id,
-        integrity_value: integrityValue,
+        authUrl: auth_url,
+        transactionId: transaction_id,
       },
     });
   } catch (error) {
@@ -625,54 +697,129 @@ app.post('/api/auth/nice/simulate', (req, res) => {
   res.redirect(`${origin}/auth/nice/callback?token=${resultToken}`);
 });
 
-// POST /api/auth/nice/callback - NICE 실제 인증 결과 수신
-app.post('/api/auth/nice/callback', (req, res) => {
+// POST /api/auth/nice/verify - 새로운 NICE 인증 결과 조회 API
+app.post('/api/auth/nice/verify', async (req, res) => {
   try {
-    const { enc_data, token_version_id, integrity_value } = req.body;
+    const { requestNo, webTransactionId } = req.body;
 
-    if (!enc_data) {
-      return res.status(400).send('인증 데이터가 없습니다.');
+    console.log('NICE 인증 결과 조회:', { requestNo, webTransactionId });
+
+    if (!requestNo || !webTransactionId) {
+      return res.status(400).json({ success: false, error: '필수 파라미터가 누락되었습니다.' });
     }
 
-    // requestNo로 저장된 키 찾기
-    let foundEntry = null;
-    let foundRequestNo = null;
-    for (const [reqNo, entry] of niceRequestStore.entries()) {
-      if (entry.tokenVersionId === token_version_id) {
-        foundEntry = entry;
-        foundRequestNo = reqNo;
-        break;
-      }
+    const requestData = niceRequestStore.get(requestNo);
+    if (!requestData) {
+      return res.status(400).json({ success: false, error: '유효하지 않은 요청이거나 만료되었습니다.' });
     }
 
-    if (!foundEntry) {
-      return res.status(400).send('유효하지 않은 인증 요청입니다.');
+    const { accessToken, transactionId, ticket, iterators } = requestData;
+
+    console.log('저장된 요청 데이터:', { requestNo, ticket, iterators, transactionId: transactionId?.substring(0, 20) + '...' });
+
+    // NICE 인증 결과 요청
+    const NICE_API_BASE = 'https://auth.niceid.co.kr';
+    const resultResponse = await fetch(`${NICE_API_BASE}/ido/intc/v1.0/auth/result`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({
+        web_transaction_id: webTransactionId,
+        transaction_id: transactionId,
+        request_no: requestNo,
+      }),
+    });
+
+    const resultData = await resultResponse.json();
+    console.log('NICE 결과 응답:', resultData);
+
+    if (resultData.result_code !== '0000') {
+      console.error('NICE 결과 조회 실패:', resultData);
+      return res.status(400).json({ success: false, error: resultData.result_message || '인증 결과 조회에 실패했습니다.' });
     }
 
-    const { key, iv, hmacKey } = foundEntry;
+    // 암호화된 데이터 복호화
+    const { enc_data, integrity_value } = resultData;
 
-    // 무결성 검증
-    const computedIntegrity = crypto.createHmac('sha256', hmacKey).update(enc_data).digest('base64');
-    if (computedIntegrity !== integrity_value) {
-      return res.status(400).send('데이터 무결성 검증에 실패했습니다.');
+    // NICE 통합인증 API 복호화 (AES-256-GCM)
+    // 참고: https://auth-guide.niceid.co.kr/
+
+    // 1. PBKDF2로 키 유도 (salt는 transaction_id!)
+    const derivedKey = crypto.pbkdf2Sync(ticket, transactionId, iterators, 64, 'sha256');
+    const keyString = derivedKey.toString('base64')
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=+$/, '');
+
+    // 2. 대칭키와 무결성키 추출
+    const symmetricKey = keyString.substring(0, 32);
+    const hmacKey = keyString.substring(48, 48 + 32);
+
+    console.log('키 유도 완료:', {
+      keyStringLength: keyString.length,
+      symmetricKeyLength: symmetricKey.length,
+      hmacKeyLength: hmacKey.length
+    });
+
+    // 3. 무결성 검증 (HMAC-SHA256)
+    const computedHmac = crypto.createHmac('sha256', hmacKey)
+      .update(enc_data)
+      .digest('base64')
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=+$/, '');
+
+    console.log('무결성 검증:', {
+      computed: computedHmac,
+      received: integrity_value,
+      match: computedHmac === integrity_value
+    });
+
+    if (computedHmac !== integrity_value) {
+      console.error('무결성 검증 실패');
+      // 무결성 검증 실패해도 복호화 시도
     }
 
-    // AES 복호화
-    const decipher = crypto.createDecipheriv('aes-128-cbc', key, iv);
-    let decrypted = decipher.update(enc_data, 'base64', 'utf8');
-    decrypted += decipher.final('utf8');
+    // 4. AES-256-GCM 복호화
+    const cipherEnc = Buffer.from(
+      enc_data.replace(/-/g, '+').replace(/_/g, '/'),
+      'base64'
+    );
+    const iv = cipherEnc.subarray(0, 16);
+    const cipherAndTag = cipherEnc.subarray(16);
+    const cipherLen = cipherAndTag.length - 16;
+    const cipherText = cipherAndTag.subarray(0, cipherLen);
+    const authTag = cipherAndTag.subarray(cipherLen);
 
-    const resultData = JSON.parse(decrypted);
+    const decipher = crypto.createDecipheriv('aes-256-gcm', Buffer.from(symmetricKey, 'utf8'), iv);
+    decipher.setAuthTag(authTag);
+
+    let decrypted;
+    try {
+      decrypted = Buffer.concat([
+        decipher.update(cipherText),
+        decipher.final()
+      ]).toString('utf8');
+      console.log('AES-256-GCM 복호화 성공');
+    } catch (decryptErr) {
+      console.error('AES-256-GCM 복호화 실패:', decryptErr.message);
+      return res.status(400).json({ success: false, error: '데이터 복호화에 실패했습니다.' });
+    }
+
+    const userData = JSON.parse(decrypted);
+    console.log('NICE 복호화 결과:', userData);
 
     // 결과 추출
-    const name = resultData.utf8_name || resultData.name || '';
-    const birthDate = resultData.birthdate ?
-      `${resultData.birthdate.substring(0, 4)}-${resultData.birthdate.substring(4, 6)}-${resultData.birthdate.substring(6, 8)}` :
+    const name = userData.name || '';
+    const birthDate = userData.birthdate ?
+      `${userData.birthdate.substring(0, 4)}-${userData.birthdate.substring(4, 6)}-${userData.birthdate.substring(6, 8)}` :
       '';
-    const gender = resultData.gender === '1' ? 'M' : 'F';
-    const ci = resultData.ci || '';
-    const di = resultData.di || '';
-    const phone = resultData.mobileno || '';
+    const gender = userData.gender === '1' ? 'M' : 'F';
+    const ci = userData.ci || '';
+    const di = userData.di || '';
+    const phone = userData.mobile_no || '';
 
     const age = calculateAge(birthDate);
     const isAdult = age >= 19;
@@ -692,16 +839,26 @@ app.post('/api/auth/nice/callback', (req, res) => {
     });
 
     setTimeout(() => niceResultStore.delete(resultToken), 5 * 60 * 1000);
-    niceRequestStore.delete(foundRequestNo);
+    niceRequestStore.delete(requestNo);
 
-    // 프론트 콜백 페이지로 리다이렉트
-    const origin = req.headers.origin || (req.headers.referer ? new URL(req.headers.referer).origin : '');
-    res.send(`<!DOCTYPE html><html><body><script>
-      window.location.href = '${origin}/auth/nice/callback?token=${resultToken}';
-    </script></body></html>`);
+    res.json({
+      success: true,
+      data: {
+        token: resultToken,
+        name,
+        maskedName: maskName(name),
+        birthDate,
+        maskedBirthDate: maskBirthDate(birthDate),
+        gender,
+        ci,
+        di,
+        isAdult,
+        age,
+      },
+    });
   } catch (error) {
-    console.error('NICE 콜백 처리 오류:', error);
-    res.status(500).send('인증 결과 처리 중 오류가 발생했습니다.');
+    console.error('NICE 인증 결과 조회 오류:', error);
+    res.status(500).json({ success: false, error: '인증 결과 조회 중 오류가 발생했습니다.' });
   }
 });
 

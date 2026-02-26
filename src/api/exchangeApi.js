@@ -223,9 +223,16 @@ export const getUsers = async (filters = {}) => {
   }
 };
 
-// 사용자 상세 조회
+// 사용자 상세 조회 (본인 정보는 authApi 사용)
 export const getUserDetail = async (userIdOrEmail) => {
   try {
+    // 현재 로그인한 사용자의 이메일과 같으면 authApi 사용
+    const currentUserEmail = localStorage.getItem('userEmail');
+    if (currentUserEmail && userIdOrEmail === currentUserEmail) {
+      const data = await authApi.getMe();
+      return { success: true, data };
+    }
+    // 관리자가 다른 사용자 조회하는 경우
     let data;
     if (userIdOrEmail.includes('@')) {
       data = await adminApi.users.getByEmail(userIdOrEmail);

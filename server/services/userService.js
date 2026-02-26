@@ -111,9 +111,9 @@ const loginUser = async (email, password) => {
 // Get user by ID
 const getUserById = async (userId) => {
   const user = await queryOne(
-    `SELECT u.id, u.email, u.name, u.phone, u.profile_image, u.social_provider,
-            u.is_adult_verified, u.adult_verified_at, u.status, u.created_at,
-            eb.total_balance, eb.available_balance, eb.hold_balance, eb.used_balance
+    `SELECT u.id, u.email, u.name, u.phone, u.profile_image AS profileImage, u.social_provider AS socialProvider,
+            u.is_adult_verified AS isAdultVerified, u.adult_verified_at AS adultVerifiedAt, u.status, u.created_at AS createdAt,
+            eb.total_balance AS totalBalance, eb.available_balance AS availableBalance, eb.hold_balance AS holdBalance, eb.used_balance AS usedBalance
      FROM users u
      LEFT JOIN exchange_balances eb ON u.id = eb.user_id
      WHERE u.id = ?`,
@@ -130,9 +130,9 @@ const getUserById = async (userId) => {
 // Get user by email
 const getUserByEmail = async (email) => {
   const user = await queryOne(
-    `SELECT u.id, u.email, u.name, u.phone, u.profile_image, u.social_provider,
-            u.is_adult_verified, u.adult_verified_at, u.status, u.created_at,
-            eb.total_balance, eb.available_balance, eb.hold_balance, eb.used_balance
+    `SELECT u.id, u.email, u.name, u.phone, u.profile_image AS profileImage, u.social_provider AS socialProvider,
+            u.is_adult_verified AS isAdultVerified, u.adult_verified_at AS adultVerifiedAt, u.status, u.created_at AS createdAt,
+            eb.total_balance AS totalBalance, eb.available_balance AS availableBalance, eb.hold_balance AS holdBalance, eb.used_balance AS usedBalance
      FROM users u
      LEFT JOIN exchange_balances eb ON u.id = eb.user_id
      WHERE u.email = ?`,

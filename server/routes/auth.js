@@ -32,6 +32,38 @@ router.post('/login', asyncHandler(async (req, res) => {
   res.json({ success: true, data: result });
 }));
 
+// Check if social user exists (without creating)
+router.post('/social/check', asyncHandler(async (req, res) => {
+  const { email, socialProvider, socialId } = req.body;
+
+  if (!email || !socialProvider || !socialId) {
+    return res.status(400).json({ success: false, error: '필수 정보가 누락되었습니다.' });
+  }
+
+  const user = await userService.getUserByEmail(email);
+
+  if (user) {
+    // 기존 사용자 - 로그인 처리
+    res.json({
+      success: true,
+      data: {
+        exists: true,
+        user,
+        isAdultVerified: user.is_adult_verified === 1
+      }
+    });
+  } else {
+    // 신규 사용자 - 성인인증 필요
+    res.json({
+      success: true,
+      data: {
+        exists: false,
+        isAdultVerified: false
+      }
+    });
+  }
+}));
+
 // Social login (Kakao/Google - store user after OAuth)
 router.post('/social', asyncHandler(async (req, res) => {
   const { email, name, socialProvider, socialId, profileImage, phone } = req.body;
