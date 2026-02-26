@@ -30,16 +30,31 @@ router.get('/:id/payments', authUser, asyncHandler(async (req, res) => {
   res.json({ success: true, data: userPayments });
 }));
 
-// Create round payment
-router.post('/payments', authUser, asyncHandler(async (req, res) => {
-  const { seasonId, roundId, amount, paymentKey, orderId, paymentData } = req.body;
+// Create round payment (supports both auth token and email lookup)
+router.post('/payments', optionalAuth, asyncHandler(async (req, res) => {
+  const { seasonId, roundId, amount, paymentKey, orderId, paymentData, userEmail } = req.body;
 
   if (!seasonId || !roundId || !amount || !orderId) {
     return res.status(400).json({ success: false, error: '필수 정보가 누락되었습니다.' });
   }
 
+  // Get userId from auth token or lookup by email
+  let userId = req.user?.id;
+
+  if (!userId && userEmail) {
+    const userService = require('../services/userService');
+    const user = await userService.getUserByEmail(userEmail);
+    if (user) {
+      userId = user.id;
+    }
+  }
+
+  if (!userId) {
+    return res.status(400).json({ success: false, error: '사용자 정보를 찾을 수 없습니다.' });
+  }
+
   const payment = await seasonService.createRoundPayment({
-    userId: req.user.id,
+    userId,
     seasonId,
     roundId,
     amount,

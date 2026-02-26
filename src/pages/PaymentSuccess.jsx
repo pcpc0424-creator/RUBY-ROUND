@@ -84,7 +84,7 @@ export default function PaymentSuccess() {
         const roundNumber = round.number || round.round_number || round.roundNumber || '';
 
         // 결제 정보 저장
-        await createRoundPayment({
+        const saveResult = await createRoundPayment({
           userEmail,
           userName,
           seasonId: round.seasonId,
@@ -94,6 +94,11 @@ export default function PaymentSuccess() {
           paymentKey: paymentKey,
           orderId: orderId,
         });
+
+        if (!saveResult.success) {
+          console.error('결제 정보 저장 실패:', saveResult.error);
+          // 결제는 완료되었으므로 에러로 처리하지 않고 계속 진행
+        }
 
         setPaymentInfo({
           orderId,
