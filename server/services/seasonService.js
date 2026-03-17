@@ -189,7 +189,7 @@ const createRoundPayment = async (paymentData) => {
   await query(
     `INSERT INTO round_payments (id, user_id, season_id, round_id, amount, payment_key, order_id, payment_data)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    [paymentId, seasonId, seasonId, roundId, amount, paymentKey, orderId, JSON.stringify(paymentDataJson || {})]
+    [paymentId, userId, seasonId, roundId, amount, paymentKey, orderId, JSON.stringify(paymentDataJson || {})]
   );
 
   return await getPaymentById(paymentId);
@@ -220,7 +220,13 @@ const getPaymentsBySeason = async (seasonId) => {
   );
 
   return payments.map(p => {
-    if (p.payment_data) p.payment_data = JSON.parse(p.payment_data);
+    if (p.payment_data && typeof p.payment_data === 'string') {
+      try {
+        p.payment_data = JSON.parse(p.payment_data);
+      } catch (e) {
+        // If parsing fails, keep it as is
+      }
+    }
     return p;
   });
 };
@@ -238,7 +244,13 @@ const getPaymentsByUser = async (userId) => {
   );
 
   return payments.map(p => {
-    if (p.payment_data) p.payment_data = JSON.parse(p.payment_data);
+    if (p.payment_data && typeof p.payment_data === 'string') {
+      try {
+        p.payment_data = JSON.parse(p.payment_data);
+      } catch (e) {
+        // If parsing fails, keep it as is
+      }
+    }
     return p;
   });
 };

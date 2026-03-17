@@ -4,3 +4,9 @@ dist
 *.log
 server/.env
 .env
+node_modules/
+.next/
+.env
+.env.*
+dist/
+build/
